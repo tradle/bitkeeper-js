@@ -1,0 +1,55 @@
+{
+  "name": "node-bitkeeper",
+  "version": "0.0.1",
+  "description": "Tradle component bitkeeper node implementation",
+  "main": "index.js",
+  "bin": {
+    "bitkeeper": "./app.js"
+  },
+  "scripts": {
+    "test": "node test/*.js"
+  },
+  "keywords": [
+    "bitcoin",
+    "blockchain",
+    "tradenet",
+    "tradle",
+    "distributed",
+    "storage",
+    "decentralized",
+    "webtorrent",
+    "storage"
+  ],
+  "author": "Mark Vayngrib <mark.vayngrib@lablz.com> (http://github.com/mvayngrib)",
+  "license": "MIT",
+  "dependencies": {
+    "bitkeeperAPI": "^0.0.1",
+    "bittorrent-dht": "^2.6.2",
+    "body-parser": "^1.10.0",
+    "bs58": "^2.0.1",
+    "create-torrent": "^3.5.0",
+    "tradle-utils": "^0.0.1",
+    "debug": "^2.1.0",
+    "express": "^4.10.6",
+    "nat-upnp": "^0.2.11",
+    "nedb": "^1.0.1",
+    "once": "^1.3.1",
+    "parse-torrent": "^2.3.0",
+    "q": "^1.1.2",
+    "re-emitter": "^1.0.0",
+    "webtorrent": "^0.16.0"
+  },
+  "devDependencies": {
+    "buffer-equal": "0.0.1",
+    "grunt": "^0.4.5",
+    "grunt-closurecompiler": "^0.9.9",
+    "grunt-contrib-jshint": "^0.10.0",
+    "grunt-githooks": "^0.3.1",
+    "grunt-jsbeautifier": "^0.2.7",
+    "grunt-tape": "0.0.2",
+    "jscoverage": "^0.5.9",
+    "load-grunt-tasks": "^1.0.0",
+    "tap-spec": "^2.1.2",
+    "tape": "^3.0.3"
+  }
+}
