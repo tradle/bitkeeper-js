@@ -4,7 +4,8 @@
 var assert = require('assert');
 var Q = require('q');
 var fs = require('fs');
-var once = require('once');
+var mkdirp = require('mkdirp');
+// var once = require('once');
 var debug = require('debug')('node-bitkeeper');
 var utils = require('tradle-utils');
 // var request = require('request');
@@ -13,7 +14,7 @@ var utils = require('tradle-utils');
 var writeFile = Q.denodeify(fs.writeFile);
 var path = require('path');
 // var debounce = require('debounce');
-var Storage = require('./lib/storage');
+var FSStorage = require('./lib/fsStorage');
 var WebTorrent = require('webtorrent');
 var DHT = require('bittorrent-dht');
 var reemit = require('re-emitter');
@@ -23,33 +24,15 @@ var common = require('./lib/common');
 // var log = console.log.bind(console);
 var EventEmitter = require('events').EventEmitter;
 var inherits = require('util').inherits;
+var Jobs = require('simple-jobs');
 var server = require('./lib/server');
 var ports = require('./lib/ports');
-var INSTANCE_IDX = 0;
-// var KeeperAPI = require('bitkeeperAPI');
-// var DEFAULT_FILE_OPTIONS = {
-//   encoding: 'utf8'
-// };
-
-// // hack Webtorrent to track downloads
-
-// var origDownload = Webtorrent.prototype.download;
-
-// Webtorrent.prototype.download = 
-// Webtorrent.prototype.add = function(torrentId) {
-//   if (!this._downloading) this._downloading = {};
-
-//   var infoHash = torrentId.infoHash || torrentId;
-//   var deferred = Q.defer();
-//   return this._downloading[infoHash] = deferred.promise;
-// }
 
 function Keeper(config) {
   var self = this;
 
-  this._id = INSTANCE_IDX++;
-
   EventEmitter.call(this);
+  this._jobs = new Jobs();
 
   common.bindPrototypeFunctions(this);
 
@@ -61,29 +44,53 @@ function Keeper(config) {
   var priv = pub;
 
   ports.mapPort(pub, priv).then(function() {
-    self._portMapping = { 'public': pub, 'private': priv };
-    self.checkReady();
-  }).catch(function(err) {
-    self._debug('Failed to create port mapping', err);
-    throw err;
-  });
+      self._portMapping = { 'public': pub, 'private': priv };
+      self.checkReady();
+    })
+    .catch(this.exitIfErr);
 
-  this._server = server.create(this, this.port(), function() {
+  server.create(this, this.port(), function(err, server) {
+    self.exitIfErr(err);
+
+    self._server = server;
     self._serverReady = true;
     self.checkReady();
   });
 
-  if (this._config.storage === false) {
-    this._dht = this._config.dht || new DHT();
+  // if (this.config('dht')) this._dht = this.config('dht');
+
+  if (this.config('storage') === false) {
+    this._dht = this.config('dht') || new DHT();
     this._storage = inMemoryStorage();
   }
   else
     this._initFromStorage();
 
-  this.onDHTReady(once(this._onDHTReady));
+  this.on('error', this._onerror);
 }
 
 inherits(Keeper, EventEmitter);
+
+Keeper.prototype._onerror = function(err, torrent) {
+  this._debug(err, torrent && torrent.infoHash);
+  if (torrent) {
+    var infoHash = torrent.infoHash;
+    if (!infoHash) {
+      // we may have tried to load a torrent with an invalid infoHash
+      for (var p in this._pending) {
+        if (this._pending[p] === torrent) {
+          infoHash = p;
+          break;
+        }
+      }
+    }
+
+    if (infoHash) {
+      delete this._pending[torrent.infoHash];
+      this.emit('error:' + torrent.infoHash, err);
+    }
+  }
+}
 
 Keeper.prototype._debug = function() {
   var args = [].slice.call(arguments);
@@ -109,7 +116,7 @@ Keeper.prototype.checkReady = function() {
   if (this._ready) return;
   if (!this._dht || !this._dht.ready) return;
   if (!this._portMapping) return;
-  if (!this._client.ready) return;
+  if (!this._client || !this._client.ready) return;
   if (!this._serverReady) return;
 
   this._ready = true;
@@ -117,7 +124,7 @@ Keeper.prototype.checkReady = function() {
   this.emit('ready');
 }
 
-Keeper.prototype._onDHTReady = function() {
+Keeper.prototype._watchDHT = function() {
   var self = this;
 
   this._dht.on('peer', function(addr, hash, from) {
@@ -130,6 +137,11 @@ Keeper.prototype._onDHTReady = function() {
     self.emit('announce:' + hash, addr);
   });
 
+  this.on('fullyReplicated', this.onFullyReplicated);
+  this.monitorReplication();
+}
+
+Keeper.prototype._initTorrentClient = function() {
   this._client = new WebTorrent({
     dht: this._dht,
     tracker: false,
@@ -137,13 +149,9 @@ Keeper.prototype._onDHTReady = function() {
     torrentPort: this.torrentPort()
   });
 
-  this._client._tradleId = this._id;
   this._client.on('ready', this.checkReady);
   this._client.on('torrent', this._ontorrent);
   reemit(this._client, this, ['warn', 'error']);
-
-  this.on('fullyReplicated', this.onFullyReplicated);
-  this.monitorReplication();
 
   this.checkReady();
 }
@@ -153,8 +161,8 @@ Keeper.prototype.monitorReplication = function() {
 
   this._monitoringReplication = true;
 
-  setInterval(this.checkReplication, 60000);
-  setInterval(this.report, 5000);
+  this._jobs.add('checkReplication', this.checkReplication, 60000);
+  this._jobs.add('report', this.report, 60000);
 }
 
 Keeper.prototype.checkTorrentReplication = function(torrent) {
@@ -277,45 +285,41 @@ Keeper.prototype.getTorrent = function(infoHash, cb) {
   // var self = this;
 
   var cached = this._client.get(infoHash);
-  if (cached) return Q.resolve(cached);
+  if (cached) return cb(null, cached);
 
-  if (this.isPending(infoHash)) {
-    this.once('torrent:' + infoHash, function(torrent) {
-      cb(null, torrent);
-    });
-
-    return;
+  if (!this.isPending(infoHash)) {
+    var torrent = this._client.download(infoHash);
+    this.markPending(infoHash, torrent);
   }
 
-  // if (!this._downloading[infoHash]) {
-  //   var deferred = Q.defer();
-  //   this._downloading[infoHash] = deferred.promise;
-  //   this._client.download(infoHash, function(torrent) {
-  //     delete self._downloading[infoHash];
-  //     deferred.resolve(torrent);
-  //   });
-  // }
-
-  this.markPending(infoHash);
-  this._client.download(infoHash);
-
-  // return this._downloading[infoHash];
+  this.once('torrent:' + infoHash, function(torrent) {
+    cb(null, torrent);
+  });
 }
 
 Keeper.prototype._initFromStorage = function() {
   var self = this;
+  var dir = this.config('storage') || 'storage';
 
-  this._config.storage = this._config.storage || 'storage';
-  this._storage = new Storage(path.join(__dirname, this._config.storageDir, 'main.db'));
-  this._storage.getAll()
-  .then(function(docs) {
-    docs.forEach(function(doc) {
-      self.seed(doc.val);
-    });
+  this.config('storage', dir);
+
+  var absDir = path.join(__dirname, dir);
+  this._dhtPath = path.join(absDir, 'DHT', 'dht.json');
+
+  Q.nfcall(mkdirp, absDir)
+  .done(function() {
+    self._loadDHT();
+    self._storage = new FSStorage(absDir);
+    self.on('ready', seedStored);
   });
 
-  this._dhtPath = path.join(__dirname, this._config.storageDir, 'dht.json');
-  this._loadDHT();
+  function seedStored() {
+    self._storage.getAll().then(function(docs) {
+      docs.forEach(function(doc) {
+        self.seed(doc.value);
+      });
+    });
+  }
 }
 
 Keeper.prototype._loadDHT = function() {
@@ -323,15 +327,17 @@ Keeper.prototype._loadDHT = function() {
 
   if (this._dht) return;
 
-  if (this._config.dht) {
-    this._dht = this._config.dht;
-    return Q.resolve();
-  }
+  var getDHT;
+  if (this.config('dht'))
+    getDHT = Q.resolve(this.config('dht'));
+  else
+    getDHT = common.dht(this._dhtPath);
 
-  return common.dht(self._dhtPath)
-  .then(function(dht) {
+  getDHT.then(function(dht) {
     self._dht = dht;
+    self.onDHTReady(self._watchDHT);
     self.onDHTReady(self._persistDHT);
+    self.onDHTReady(self._initTorrentClient);
     if (!self._dht.listening) self._dht.listen();
 
     ['announce', 'node', 'removenode', 'removepeer'].forEach(function(event) {
@@ -344,28 +350,14 @@ Keeper.prototype.onDHTReady = function(cb) {
   var self = this;
 
   process.nextTick(function() {
-    if (self._dht && self._dht.ready) 
+    if (!self._dht) return cb(new Error('keeper doesn\'t have DHT'));
+
+    if (self._dht.ready)
       cb();
     else 
       self._dht.on('ready', cb)
   });
 }
-
-// /**
-//  * Estimate the number of peers, including ourselves, that we know are storing the given key. For a better estimate, use calcReplicationCount
-//  * @param {String} key
-//  * @param {function} cb - async because we need to check our local db to know if we're replicating the key
-// **/
-// Keeper.prototype.replicationCount = function(key, cb) {
-//   var count = 0;
-//   var peers = this.dht.peers[key];
-//   if (peers)
-//     count += Object.keys(peers.index).filter(isTradleNode).length;
-
-//   this._getFromStorage(key, function(err, val) {
-//     cb(null, err ? count : count + 1);
-//   });
-// }
 
 /**
  * Self-destruct and cleanup
@@ -377,6 +369,7 @@ Keeper.prototype.destroy = function() {
 
   this._destroyed = true;
   this.removeAllListeners();
+  this._jobs.clear();
 
   return Q.all([
     Q.ninvoke(this._client, 'destroy'), // destroys DHT internally
@@ -423,10 +416,14 @@ Keeper.prototype.storage = function() {
   return this._storage;
 }
 
-Keeper.prototype.config = function(configOption) {
-  return typeof configOption === 'undefined' ? 
-      this._config : 
-      this._config[configOption];
+Keeper.prototype.config = function(configOption, value) {
+  if (arguments.length === 1) {
+    return typeof configOption === 'undefined' ? 
+        this._config : 
+        this._config[configOption];
+  }
+
+  this._config[configOption] = value;
 }
 
 Keeper.prototype.hasTorrent = function(infoHash) {
@@ -437,8 +434,8 @@ Keeper.prototype.isPending = function(infoHash) {
   return this._pending.hasOwnProperty(infoHash);
 }
 
-Keeper.prototype.markPending = function(infoHash) {
-  this._pending[infoHash] = true;
+Keeper.prototype.markPending = function(infoHash, torrent) {
+  this._pending[infoHash] = torrent || true;
 }
 
 /**
@@ -446,6 +443,8 @@ Keeper.prototype.markPending = function(infoHash) {
  */ 
 Keeper.prototype.seed = function(val) {
   var self = this;
+
+  requireParam('val', val);
 
   if (val.infoHash) { 
     // val is Torrent
@@ -468,21 +467,12 @@ Keeper.prototype.seed = function(val) {
     self.markPending(infoHash);
     return self._client.seed(val, { name: utils.getTorrentName(val) });
   });
-
-  // Q.ninvoke(utils, 'getInfoHash', val)
-  //   .then(function(infoHash) {
-  //     if (!self.hasTorrent(infoHash) && !self.isPending(infoHash)) {
-  //       self._debug('2. Replicating torrent: ' + infoHash);
-  //       self.markPending(infoHash); 
-  //       self._client.seed(val, { name: utils.getTorrentName(val) });
-  //     }
-  //   });
 }
 
 Keeper.prototype.validate = function(key, val) {
   return Q.ninvoke(utils, 'getInfoHash', val)
     .then(function(infoHash) {
-      assert.equal(key, infoHash, 'Key must be the infohash of the value');
+      if (key !== infoHash) throw common.httpError(400, 'Key must be the infohash of the value, in this case: ' + infoHash);
     });
 }
 
@@ -507,21 +497,6 @@ Keeper.prototype.replicate = function(key, val, count) {
   this.once(replicatedEvent, deferred.resolve);
 
   return deferred.promise;
-
-  // return Q.Promise(function(resolve) {
-  //   function checkCount() {
-  //     log('acquired new peer for ' + key);
-
-  //     if (self.peersCount(key) >= count) {
-  //       log('achieved desired level of replication (' + count + ') for ' + key);
-  //       self.removeListener(peerEvent, checkCount);
-  //       resolve();
-  //     }
-  //   }
-
-  //   self.on(peerEvent, checkCount);
-  //   checkCount();
-  // });
 }
 
 /**
@@ -579,117 +554,51 @@ Keeper.prototype.isFullyReplicated = function(torrent) {
   return this.percentReplication(torrent) >= 100;
 }
 
-// Keeper.prototype._doReplicate = function(key, val, count) {
-//   var self = this;  
-//   var peers = this._dht.peers[key];
-//   var closest = this._dht.nodes.closest({ id: key }, DHT.K);
-//   if (peers && peers.length) closest = closest.filter(function(contact) {
-//     return !peers[contact.addr];
-//   });
+Keeper.prototype.get = function(keys) {
+  // var self = this;
+  if (!Array.isArray(keys))
+    keys = [keys];
 
-//   if (typeof val !== 'string') val = val.toString();
-
-//   if (closest.length < count) return this.getMoreNodes(key, closest).then(function() {
-//     return self._doReplicate(key, val, count);
-//   });
-
-//   return this.askToStore(closest.slice(0, count), key, val)
-//   .then(function(numStored) {
-//     if (!numStored) throw new Error('no peers accepted put'); // TODO: implement something sane
-
-//     count -= numStored;
-//     if (count) return self._doReplicate(key, val, count);
-//   });
-// }
-
-Keeper.prototype.getMoreNodes = function(infoHash, skipNodes) {
-  return Q.reject(new Error('not implemented'));
-}
-
-// Keeper.prototype.askToStore = function(contacts, key, val) {
-//   var self = this;
-
-//   var tasks = contacts.map(function(contact) {
-//     return self.askOneToStore(contact, key, val);
-//   });
-
-//   return Q.allSettled(tasks)
-//   .then(function(results) {
-//     return results.reduce(function(memo, result) {
-//       if (result.state === 'fulfilled') memo++;
-
-//       return memo;
-//     }, 0);
-//   });
-// }
-
-// Keeper.prototype.askOneToStore = function(contact, key, val) {
-//   debugger;
-
-//   var addr = contact.addr;
-//   addr = '127.0.0.1:' + addr.split(':')[1];
-//   debugger;
-//   return Q.ninvoke(request, 'post', {
-//     url: 'http://:' + addr + '/put',
-//     headers: {'content-type' : 'application/x-www-form-urlencoded'},
-//     body: querystring.stringify({ key: key, val: val })
-//   }).then(function(result) {
-//     debugger;
-//     console.log(result);
-//   });
-// }
-
-Keeper.prototype.get = function(key) {
-  var self = this;
-
-  return this.storage()
-    .get(key)
-    .then(function(docs) {
-      return docs.length ? docs : self.find(key);
+  return Q.allSettled(keys.map(this.getOne))
+    .then(function(results) {
+      return results.map(function(r) {
+        return r.value;
+      })
     });
 }
 
-// Keeper.prototype.fetch = function(keys, fromAddr) {
-//   return new KeeperAPI(fromAddr).get(keys);
-// }
+Keeper.prototype.getOne = function(key) {
+  var self = this;
+  return this.storage()
+    .getOne(key)
+    .then(function(val) {
+      if (typeof val !== 'undefined') return val;
 
-// Keeper.prototype.find = function(key) {
-//   var deferred = Q.defer();
+      return self.promise(key, 5000); // timeout
+    });
+}
 
-//   this.once('done:' + key, deferred.resolve);
-//   this._client.download(key);
 
-//   return deferred.promise.then(function(torrent) {
-//     debugger;
-//     return torrent.storage.files;
-//   });
+/**
+ *  Promise to load a torrent with infoHash {key}
+ *  @param {string} infoHash
+ *  @return {Q.Promise} promise that resolves with torrent file contents (not torrent metadata, but actual data)
+ */ 
+Keeper.prototype.promise = function(infoHash, timeout) {
+  var self = this;
+  var deferred = defer(timeout);
 
-//   // var self = this;
-//   // var peerEvent = 'peer:' + key;
-//   // var deferred = Q.defer();
+  this.on('put:' + infoHash, deferred.resolve);
+  this.on('error:' + infoHash, deferred.reject);
 
-//   // this.on(peerEvent, fetchFromPeer);
-//   // this._dht.lookup(key);
+  deferred.promise.finally(function() {
+    self.removeListener('put:' + infoHash, deferred.resolve);
+    self.removeListener('error:' + infoHash, deferred.reject);
+  });
 
-//   // var timeoutId = setTimeout(function() {
-//   //   deferred.reject(new Error('timeout'));
-//   // }, 10000);
-
-//   // function fetchFromPeer(addr) {
-//   //   self.fetch(key, addr)
-//   //   .then(function(val) {
-//   //     debugger;
-//   //     self.put(key, val);
-//   //     deferred.resolve(val);
-//   //   });
-//   // }
-
-//   // return deferred.promise
-//   //   .finally(function() {
-//   //     clearTimeout(timeoutId);
-//   //     self.removeListener(peerEvent, fetchFromPeer);
-//   //   });
-// }
+  this.getTorrent(infoHash);
+  return deferred.promise;
+}
 
 Keeper.prototype.put = function(key, value) {
   var self = this;
@@ -700,22 +609,24 @@ Keeper.prototype.put = function(key, value) {
     });
   else {
     value = key;
+    requireParam('value', value);
     return Q.ninvoke(utils, 'getInfoHash', value).then(function(infoHash) {
       return self._doPut(infoHash, value);
     });
   }
 }
 
-Keeper.prototype._doPut = function(key, value) {
+Keeper.prototype._doPut = function(key, val) {
   var self = this;
-  var valBuf = common.buffer(value);
-  var valStr = common.string(value);
 
   return self.storage()
-    .putOne(key, valStr)
-    .then(function() {
-      self.emit('put', key, valStr);
-      self.seed(valBuf);
+    .putOne(key, val, { overwrite: true })
+    .then(function(numPut) {
+      if (numPut) {
+        self.emit('put', key, val);
+        self.emit('put:' + key, val);
+        self.seed(val);
+      }
       // self._dht.announce(key, self.torrentPort());
     });
 }
@@ -736,6 +647,14 @@ Keeper.prototype.port = function() {
 
 Keeper.prototype.torrentPort = function() {
   return this.config('address').torrentPort;
+}
+
+Keeper.prototype.exitIfErr = function(err) {
+  if (err) {
+    debugger;
+    this._debug(err);
+    process.exit();
+  }
 }
 
 // Keeper.prototype.dhtPort = function() {
@@ -762,13 +681,12 @@ function inMemoryStorage() {
       map[key] = val;
       return Q.resolve();
     },
-    get: function(keys) {
-      var vals = keys.map(function(k) {
-        return map[k];
-      });
-
-      return Q.resolve(vals.filter(function(val) { 
-        return val;
+    getOne: function(key) {
+      return (key in map) ? Q.resolve(map[key]) : Q.resolve();
+    },
+    getMany: function(keys) {
+      return Q.resolve(keys.map(function(key) { 
+        return map[key];
       }));
     },
     close: function() {
@@ -797,8 +715,23 @@ function getNestedProperty(obj, path) {
 }
 
 function requireParam(name, value) {
-  assert(typeof value !== 'undefined', 'Missing required parameter: ' + value);
+  assert(typeof value !== 'undefined', 'Missing required parameter: ' + name);
   return value;
+}
+
+function defer(timeout) {
+  var deferred = Q.defer();
+  if (typeof timeout === 'undefined') return deferred;
+
+  var timeoutId = setTimeout(function() {
+    deferred.reject(new Error('timeout'));
+  }, timeout);
+
+  deferred.promise.finally(function() {
+    clearTimeout(timeoutId);
+  });
+
+  return deferred;
 }
 
 module.exports = Keeper;

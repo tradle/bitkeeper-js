@@ -15,7 +15,7 @@ var ports = require('../lib/ports');
 var crypto = require('crypto');
 var log = console.log.bind(console);
 var externalIp;
-config.storage = false;
+// config.storage = false;
 
 var common = require('../lib/common');
 var data = [];
@@ -192,7 +192,7 @@ test('replication across all keepers', function(t) {
       var keeper = keepers[idx % numInstances];
       new KeeperAPI('127.0.0.1:' + keeper.port())
           // .put(infoHashes[idx], data[idx].toString());
-          .put(infoHashes[idx], data[idx].toString('base64'));
+          .put(infoHashes[idx], data[idx]);
 
         // .put(d);
 

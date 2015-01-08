@@ -27,16 +27,21 @@
     "bittorrent-dht": "^2.6.2",
     "body-parser": "^1.10.0",
     "bs58": "^2.0.1",
+    "concat-stream": "^1.4.7",
     "create-torrent": "^3.5.0",
-    "tradle-utils": "^0.0.1",
     "debug": "^2.1.0",
     "express": "^4.10.6",
+    "mkdirp": "^0.5.0",
     "nat-upnp": "^0.2.11",
     "nedb": "^1.0.1",
-    "once": "^1.3.1",
     "parse-torrent": "^2.3.0",
     "q": "^1.1.2",
     "re-emitter": "^1.0.0",
+    "rimraf": "^2.2.8",
+    "simple-get": "^1.3.0",
+    "simple-jobs": "0.0.1",
+    "tradle-utils": "^0.0.1",
+    "walk": "^2.3.5",
     "webtorrent": "^0.16.0"
   },
   "devDependencies": {
@@ -49,6 +54,7 @@
     "grunt-tape": "0.0.2",
     "jscoverage": "^0.5.9",
     "load-grunt-tasks": "^1.0.0",
+    "minimist": "^1.1.0",
     "tap-spec": "^2.1.2",
     "tape": "^3.0.3"
   }
