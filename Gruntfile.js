@@ -5,11 +5,8 @@ module.exports = function(grunt) {
 
   require('load-grunt-tasks')(grunt);
 
-  grunt.registerTask('minify', ['closurecompiler:minify']);
-
   grunt.registerTask('default', [
-    'jshint',
-    'tape'
+    'jshint'
   ]);
 
   // Project configuration.
@@ -17,16 +14,8 @@ module.exports = function(grunt) {
     pkg: grunt.file.readJSON('package.json'),
     githooks: {
       all: {
-        'pre-commit': 'jsbeautifier jshint tape'
+        'pre-commit': 'jsbeautifier jshint'
       }
-    },
-
-    tape: {
-      options: {
-        pretty: true,
-        output: 'console'
-      },
-      files: ['test/**/*.js']
     },
 
     jsbeautifier: {
