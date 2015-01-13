@@ -377,12 +377,12 @@ Keeper.prototype._persistDHT = function() {
   var dhtStr = JSON.stringify(this._dht.toArray());
 
   return writeFile(this._dhtPath, dhtStr)
-  .then(function() {
-    self._persistingDHT = false;
-  })
-  .catch(function(err) {
-    if (err) log.error('failed to store DHT', err);
-  })
+    .then(function() {
+      self._persistingDHT = false;
+    })
+    .catch(function(err) {
+      if (err) self._debug('failed to store DHT', err);
+    })
 }
 
 /**
@@ -629,7 +629,6 @@ Keeper.prototype.torrentPort = function() {
 
 Keeper.prototype.exitIfErr = function(err) {
   if (err) {
-    debugger;
     this._debug(err);
     process.exit();
   }
@@ -642,14 +641,6 @@ Keeper.prototype.exitIfErr = function(err) {
 function isFinished(promise) {
   var state = promise.inspect().state;
   return state !== 'unknown' && state !== 'pending';
-}
-
-function isTradleNode(addr) {
-  return isOnLAN(addr);
-}
-
-function isOnLAN(addr) {
-  return ip.address() === addr.split(':')[0];
 }
 
 function inMemoryStorage() {

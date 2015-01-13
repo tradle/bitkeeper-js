@@ -9,7 +9,7 @@ module.exports = function(grunt) {
 
   grunt.registerTask('default', [
     'jshint',
-    'closurecompiler:minify'
+    'tape'
   ]);
 
   // Project configuration.
@@ -17,7 +17,7 @@ module.exports = function(grunt) {
     pkg: grunt.file.readJSON('package.json'),
     githooks: {
       all: {
-        'pre-commit': 'jsbeautifier jshint closurecompiler:minify tape'
+        'pre-commit': 'jsbeautifier jshint tape'
       }
     },
 
@@ -57,24 +57,6 @@ module.exports = function(grunt) {
 
       default: {
         src: ['Gruntfile.js', 'index.js', 'lib/**/*.js']
-      }
-    },
-    closurecompiler: {
-      minify: {
-        files: {
-          // Destination: Sources...
-          'bitkeeper-js.min.js': ['index.js', 'lib/**/*.js']
-        },
-        options: {
-          // Any options supported by Closure Compiler, for example:
-          'compilation_level': 'SIMPLE_OPTIMIZATIONS',
-
-          // Plus a simultaneous processes limit
-          'max_processes': 5,
-
-          // And an option to add a banner, license or similar on top
-          'banner': '/* Let\'s Tradle! */'
-        }
       }
     }
   });
