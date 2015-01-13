@@ -1,14 +1,15 @@
 {
-  "name": "node-bitkeeper",
+  "name": "bitkeeper-js",
   "version": "0.0.1",
-  "description": "Tradle component bitkeeper node implementation",
+  "description": "Tradle bitkeeper component in JS",
   "main": "index.js",
-  "bin": {
-    "bitkeeper": "./app.js"
-  },
   "scripts": {
     "test": "node test/*.js"
   },
+  "bugs": {
+    "url": "https://github.com/tradle/bitkeeper-js/issues"
+  },
+  "homepage": "https://github.com/tradle/bitkeeper-js",
   "keywords": [
     "bitcoin",
     "blockchain",
@@ -20,7 +21,6 @@
     "webtorrent",
     "storage"
   ],
-  "author": "Mark Vayngrib <mark.vayngrib@lablz.com> (http://github.com/mvayngrib)",
   "license": "MIT",
   "dependencies": {
     "bitkeeperAPI": "^0.0.1",
@@ -32,9 +32,9 @@
     "debug": "^2.1.0",
     "express": "^4.10.6",
     "mkdirp": "^0.5.0",
-    "nat-upnp": "^0.2.11",
     "nedb": "^1.0.1",
     "parse-torrent": "^2.3.0",
+    "promise-ports": "^0.0.1",
     "q": "^1.1.2",
     "re-emitter": "^1.0.0",
     "rimraf": "^2.2.8",

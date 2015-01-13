@@ -35,11 +35,11 @@ module.exports = function(grunt) {
       },
 
       default: {
-        src: ['lib/**/*.js']
+        src: ['index.js', 'lib/**/*.js']
       },
 
       verify: {
-        src: ['lib/**/*.js'],
+        src: ['index.js', 'lib/**/*.js'],
         options: {
           mode: 'VERIFY_ONLY'
         }
@@ -56,14 +56,14 @@ module.exports = function(grunt) {
       },
 
       default: {
-        src: ['Gruntfile.js', 'lib/**/*.js']
+        src: ['Gruntfile.js', 'index.js', 'lib/**/*.js']
       }
     },
     closurecompiler: {
       minify: {
         files: {
           // Destination: Sources...
-          'node-bitkeeper.min.js': ['lib/**/*.js']
+          'bitkeeper-js.min.js': ['index.js', 'lib/**/*.js']
         },
         options: {
           // Any options supported by Closure Compiler, for example:

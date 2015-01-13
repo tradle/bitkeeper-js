@@ -5,28 +5,19 @@ var assert = require('assert');
 var Q = require('q');
 var fs = require('fs');
 var mkdirp = require('mkdirp');
-// var once = require('once');
-var debug = require('debug')('node-bitkeeper');
+var debug = require('debug')('bitkeeper-js');
 var utils = require('tradle-utils');
-// var request = require('request');
-// var querystring = require('querystring');
-// var readFile = Q.denodeify(fs.readFile);
 var writeFile = Q.denodeify(fs.writeFile);
 var path = require('path');
-// var debounce = require('debounce');
 var FSStorage = require('./lib/fsStorage');
 var WebTorrent = require('webtorrent');
 var DHT = require('bittorrent-dht');
 var reemit = require('re-emitter');
-// var createTorrent = require('create-torrent');
-// var parseTorrent = require('parse-torrent');
 var common = require('./lib/common');
-// var log = console.log.bind(console);
 var EventEmitter = require('events').EventEmitter;
 var inherits = require('util').inherits;
 var Jobs = require('simple-jobs');
-var server = require('./lib/server');
-var ports = require('./lib/ports');
+var ports = require('promise-ports');
 
 function Keeper(config) {
   var self = this;
@@ -43,19 +34,11 @@ function Keeper(config) {
   var pub = this.torrentPort();
   var priv = pub;
 
-  ports.mapPort(pub, priv).then(function() {
+  ports.mapPort(pub, priv, true).then(function() {
       self._portMapping = { 'public': pub, 'private': priv };
       self.checkReady();
     })
     .catch(this.exitIfErr);
-
-  server.create(this, this.port(), function(err, server) {
-    self.exitIfErr(err);
-
-    self._server = server;
-    self._serverReady = true;
-    self.checkReady();
-  });
 
   // if (this.config('dht')) this._dht = this.config('dht');
 
@@ -94,7 +77,7 @@ Keeper.prototype._onerror = function(err, torrent) {
 
 Keeper.prototype._debug = function() {
   var args = [].slice.call(arguments);
-  args[0] = '[' + this.port() + '] ' + args[0];
+  args[0] = '[' + this.torrentPort() + '] ' + args[0];
   return debug.apply(null, args);
 }
 
@@ -117,7 +100,6 @@ Keeper.prototype.checkReady = function() {
   if (!this._dht || !this._dht.ready) return;
   if (!this._portMapping) return;
   if (!this._client || !this._client.ready) return;
-  if (!this._serverReady) return;
 
   this._ready = true;
   this._debug('ready');
@@ -639,10 +621,6 @@ Keeper.prototype.externalIp = function(ip) {
 
 Keeper.prototype.clear = function() {
   return this.storage().clear();
-}
-
-Keeper.prototype.port = function() {
-  return this.config('address').port;
 }
 
 Keeper.prototype.torrentPort = function() {

@@ -1,7 +1,5 @@
 {
   "address" : {
-    "host": "127.0.0.1",
-    "port": 8000,
     "torrentPort": 9000,
     "dhtPort":  7000
   },
