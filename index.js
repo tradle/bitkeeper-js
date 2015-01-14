@@ -34,7 +34,9 @@ function Keeper(config) {
   var pub = this.torrentPort();
   var priv = pub;
 
-  ports.mapPort(pub, priv, true).then(function() {
+  ports.mapPort(pub, priv, true)
+    .then(function() {
+      console.log('Torrent port open: ' + pub);
       self._portMapping = { 'public': pub, 'private': priv };
       self.checkReady();
     })
