@@ -1,4 +1,4 @@
-node-bitkeeper
+bitkeeper
 ==============
 
-Tradle bitkeeper implementation in node
+Tradle bitkeeper implementation in JS
