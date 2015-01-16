@@ -27,7 +27,7 @@
   ],
   "license": "MIT",
   "dependencies": {
-    "bitkeeperAPI": "git://github.com/tradle/bitkeeperAPI.git",
+    "bitkeeper-client-js": "git://github.com/tradle/bitkeeper-client-js.git",
     "bittorrent-dht": "^2.6.2",
     "body-parser": "^1.10.0",
     "bs58": "^2.0.1",
