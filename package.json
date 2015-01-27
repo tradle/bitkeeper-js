@@ -10,6 +10,7 @@
     "test": "node test/*.js"
   },
   "pre-commit": [
+    "test",
     "jsbeautify",
     "jshint"
   ],
