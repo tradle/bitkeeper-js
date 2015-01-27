@@ -1,13 +1,6 @@
 {
-  "address" : {
-    "torrentPort": 9000,
-    "dhtPort":  7000
-  },
-  "storage": "storage",
-  "dhtPeerAddresses" : [
-    {
-      "dhtHost": "127.0.0.1",
-      "dhtPort": 7001
-    }
-  ]
+  "torrentPort": 9000,
+  "dhtPort":  7000,
+  "checkReplication": 10000,
+  "storage": "storage"
 }
