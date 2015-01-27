@@ -35,7 +35,7 @@ function Keeper(config) {
 
 inherits(Keeper, EventEmitter);
 
-Keeper.prototype._onerror = function (err, torrent) {
+Keeper.prototype._onerror = function(err, torrent) {
   this._debug(err, torrent && torrent.infoHash);
   if (torrent) {
     var infoHash = torrent.infoHash;
@@ -56,27 +56,27 @@ Keeper.prototype._onerror = function (err, torrent) {
   }
 }
 
-Keeper.prototype._debug = function () {
+Keeper.prototype._debug = function() {
   var args = [].slice.call(arguments);
   args[0] = '[' + this.config('torrentPort') + '] ' + args[0];
   return debug.apply(null, args);
 }
 
-Keeper.prototype.report = function () {
+Keeper.prototype.report = function() {
   var self = this;
   var torrents = this._client.torrents;
   if (!torrents || !torrents.length) return;
 
   this._debug('REPLICATION REPORT');
 
-  torrents.forEach(function (torrent) {
+  torrents.forEach(function(torrent) {
     self._debug('  ' + torrent.infoHash + ' : ' + self.peersCount(torrent));
   });
 
   this._debug('END REPLICATION REPORT');
 }
 
-Keeper.prototype._checkReady = function () {
+Keeper.prototype._checkReady = function() {
   if (this.ready()) return;
   if (!this._dht || !this._dht.ready) return;
   // if (!this._portMapping) return;
@@ -87,11 +87,11 @@ Keeper.prototype._checkReady = function () {
   this.emit('ready');
 }
 
-Keeper.prototype.ready = function () {
+Keeper.prototype.ready = function() {
   return this._ready;
 }
 
-Keeper.prototype._watchDHT = function () {
+Keeper.prototype._watchDHT = function() {
   var self = this;
   var peers = this._dht.peers;
   if (peers) {
@@ -103,7 +103,7 @@ Keeper.prototype._watchDHT = function () {
     }
   }
 
-  this._dht.on('announce', function (addr, hash) {
+  this._dht.on('announce', function(addr, hash) {
     self.addPeer(addr, hash);
     self.emit('announce:' + hash, addr);
   });
@@ -112,7 +112,7 @@ Keeper.prototype._watchDHT = function () {
   this.monitorReplication();
 }
 
-Keeper.prototype._initTorrentClient = function () {
+Keeper.prototype._initTorrentClient = function() {
   this._client = new WebTorrent({
     dht: this._dht,
     tracker: false,
@@ -127,7 +127,7 @@ Keeper.prototype._initTorrentClient = function () {
   this._checkReady();
 }
 
-Keeper.prototype.monitorReplication = function () {
+Keeper.prototype.monitorReplication = function() {
   if (this._monitoringReplication) return;
 
   this._monitoringReplication = true;
@@ -136,13 +136,13 @@ Keeper.prototype.monitorReplication = function () {
   // this._jobs.add('report', this.report, 60000);
 }
 
-Keeper.prototype.checkTorrentReplication = function (torrent) {
+Keeper.prototype.checkTorrentReplication = function(torrent) {
   requireParam('torrent', torrent);
 
   var self = this;
 
   this.judge(torrent)
-    .then(function (verdict) {
+    .then(function(verdict) {
       if (verdict.replicate) {
         self._dht.announce(torrent.infoHash, self.config('torrentPort'));
         self.seed(torrent);
@@ -156,16 +156,16 @@ Keeper.prototype.checkTorrentReplication = function (torrent) {
     })
 }
 
-Keeper.prototype.delayDrop = function (torrent, delay) {
+Keeper.prototype.delayDrop = function(torrent, delay) {
   var self = this;
 
   delay = typeof delay === 'number' ?
     delay :
     Math.random() * 30000;
 
-  setTimeout(function () {
+  setTimeout(function() {
     self.judge(torrent)
-      .then(function (verdict) {
+      .then(function(verdict) {
         if (verdict.drop) self.removeTorrent(torrent);
       })
   }, delay);
@@ -174,7 +174,7 @@ Keeper.prototype.delayDrop = function (torrent, delay) {
 /**
  *  Override this to choose a different strategy for replicate/drop decisions
  */
-Keeper.prototype.judge = function (torrent) {
+Keeper.prototype.judge = function(torrent) {
 
   // for now, replicate all
   return Q.resolve({
@@ -189,26 +189,26 @@ Keeper.prototype.judge = function (torrent) {
   // });
 }
 
-Keeper.prototype.checkReplication = function () {
+Keeper.prototype.checkReplication = function() {
   var self = this;
 
   var torrents = this._client.torrents;
-  if (torrents) torrents.forEach(function (torrent) {
+  if (torrents) torrents.forEach(function(torrent) {
     self.checkTorrentReplication(torrent);
   });
 }
 
-Keeper.prototype._ontorrent = function (torrent) {
+Keeper.prototype._ontorrent = function(torrent) {
   var self = this;
 
   if (this._destroyed) return;
 
   // TODO: cleanup when torrents are removed/destroyed/etc.
-  torrent.files.forEach(function (file) {
+  torrent.files.forEach(function(file) {
     file.select();
   });
 
-  torrent.once('done', function () {
+  torrent.once('done', function() {
     self.emit('done:' + torrent.infoHash, torrent);
     self.put(getFileData(torrent));
   });
@@ -217,19 +217,19 @@ Keeper.prototype._ontorrent = function (torrent) {
   this.emit('torrent:' + torrent.infoHash, torrent);
 }
 
-Keeper.prototype.onFullyReplicated = function (infoHash) {
+Keeper.prototype.onFullyReplicated = function(infoHash) {
   this._debug(infoHash + ' has achieved its desired level of replication: ' + this.desiredReplication(infoHash));
   this.emit('fullyReplicated:' + infoHash);
 }
 
-Keeper.prototype.addPeer = function (addr, torrent) {
+Keeper.prototype.addPeer = function(addr, torrent) {
   var self = this;
 
   if (typeof torrent === 'string') {
     var infoHash = torrent;
     torrent = this.torrent(infoHash);
     if (!torrent) {
-      return this.getTorrent(infoHash, function (err, torrent) {
+      return this.getTorrent(infoHash, function(err, torrent) {
         if (err) throw err;
 
         self.addPeer(addr, torrent);
@@ -246,7 +246,7 @@ Keeper.prototype.addPeer = function (addr, torrent) {
  * removes oneself as a peer for {torrent}
  * @param {string|Torrent} torrent
  */
-Keeper.prototype.removeTorrent = function (torrent) {
+Keeper.prototype.removeTorrent = function(torrent) {
   requireParam('torrent', torrent);
 
   var infoHash = this.infoHash(torrent);
@@ -258,7 +258,7 @@ Keeper.prototype.removeTorrent = function (torrent) {
   }
 }
 
-Keeper.prototype.getTorrent = function (infoHash, cb) {
+Keeper.prototype.getTorrent = function(infoHash, cb) {
   var self = this;
 
   var cached = this._client.get(infoHash);
@@ -269,13 +269,13 @@ Keeper.prototype.getTorrent = function (infoHash, cb) {
     this.markPending(infoHash, torrent);
   }
 
-  this.once('torrent:' + infoHash, function (torrent) {
+  this.once('torrent:' + infoHash, function(torrent) {
     if (cb) cb(null, torrent);
     else self._debug('Got torrent: ' + torrent.infoHash);
   });
 }
 
-Keeper.prototype._initFromStorage = function () {
+Keeper.prototype._initFromStorage = function() {
   var self = this;
 
   var dir = this.config('storage') || 'storage';
@@ -285,25 +285,25 @@ Keeper.prototype._initFromStorage = function () {
   this._dhtPath = path.join(__dirname, dir, 'dht.json');
 
   Q.nfcall(mkdirp, txDir)
-    .done(function () {
+    .done(function() {
       self._loadDHT();
       self._storage = new FSStorage(txDir);
     });
 }
 
-Keeper.prototype.seedStored = function () {
+Keeper.prototype.seedStored = function() {
   var self = this;
 
   if (!this.ready()) return this.on('ready', this.seedStored);
 
-  this._storage.getAll().then(function (vals) {
-    vals.forEach(function (val) {
+  this._storage.getAll().then(function(vals) {
+    vals.forEach(function(val) {
       self.seed(val);
     });
   });
 }
 
-Keeper.prototype._loadDHT = function () {
+Keeper.prototype._loadDHT = function() {
   var self = this;
 
   var getDHT;
@@ -312,7 +312,7 @@ Keeper.prototype._loadDHT = function () {
   else
     getDHT = common.dht(this._dhtPath);
 
-  return getDHT.then(function (dht) {
+  return getDHT.then(function(dht) {
     self._dht = dht;
     self.onDHTReady(self._watchDHT);
     self.onDHTReady(self._checkReady);
@@ -322,16 +322,16 @@ Keeper.prototype._loadDHT = function () {
     if (self.config('storage') === false) return;
 
     self.onDHTReady(self._persistDHT);
-    ['announce', 'node', 'removenode', 'removepeer'].forEach(function (event) {
+    ['announce', 'node', 'removenode', 'removepeer'].forEach(function(event) {
       self._dht.on(event, self._persistDHT);
     });
   });
 }
 
-Keeper.prototype.onDHTReady = function (cb) {
+Keeper.prototype.onDHTReady = function(cb) {
   var self = this;
 
-  process.nextTick(function () {
+  process.nextTick(function() {
     if (!self._dht) return cb(new Error('keeper doesn\'t have DHT'));
 
     if (self._dht.ready)
@@ -344,7 +344,7 @@ Keeper.prototype.onDHTReady = function (cb) {
 /**
  * Self-destruct and cleanup
  **/
-Keeper.prototype.destroy = function () {
+Keeper.prototype.destroy = function() {
   var self = this;
 
   if (this._destroyed) return
@@ -356,7 +356,7 @@ Keeper.prototype.destroy = function () {
   return Q.all([
     Q.ninvoke(this._client, 'destroy'), // destroys DHT internally
     this._storage.close()
-  ]).then(function () {
+  ]).then(function() {
     self._client.removeAllListeners();
     self._dht.removeAllListeners();
   });
@@ -367,7 +367,7 @@ Keeper.prototype.destroy = function () {
  * @param {function} cb
  * @return {promise}
  **/
-Keeper.prototype._persistDHT = function () {
+Keeper.prototype._persistDHT = function() {
   var self = this;
 
   if (this._persistingDHT) return Q.resolve();
@@ -379,10 +379,10 @@ Keeper.prototype._persistDHT = function () {
       path: this._dhtPath,
       data: dhtStr
     })
-    .catch(function (err) {
+    .catch(function(err) {
       self._debug('failed to store DHT', err);
     })
-    .finally(function () {
+    .finally(function() {
       self._persistingDHT = false;
     })
 }
@@ -396,11 +396,11 @@ Keeper.prototype._persistDHT = function () {
 //   cb(new Error('Not implemented'));
 // }
 
-Keeper.prototype.storage = function () {
+Keeper.prototype.storage = function() {
   return this._storage;
 }
 
-Keeper.prototype.config = function (configOption, value) {
+Keeper.prototype.config = function(configOption, value) {
   if (arguments.length === 1) {
     return typeof configOption === 'undefined' ?
       this._config :
@@ -410,22 +410,22 @@ Keeper.prototype.config = function (configOption, value) {
   this._config[configOption] = value;
 }
 
-Keeper.prototype.hasTorrent = function (infoHash) {
+Keeper.prototype.hasTorrent = function(infoHash) {
   if (this._client.get(infoHash)) return true;
 }
 
-Keeper.prototype.isPending = function (infoHash) {
+Keeper.prototype.isPending = function(infoHash) {
   return this._pending.hasOwnProperty(infoHash);
 }
 
-Keeper.prototype.markPending = function (infoHash, torrent) {
+Keeper.prototype.markPending = function(infoHash, torrent) {
   this._pending[infoHash] = torrent || true;
 }
 
 /**
  *  @param {string|Buffer|Torrent} val
  */
-Keeper.prototype.seed = function (val) {
+Keeper.prototype.seed = function(val) {
   if (this.config('private')) return;
 
   var self = this;
@@ -445,7 +445,7 @@ Keeper.prototype.seed = function (val) {
   if (typeof val === 'string')
     val = common.buffer(val);
 
-  utils.getInfoHash(val, function (err, infoHash) {
+  utils.getInfoHash(val, function(err, infoHash) {
     if (err) throw err;
 
     if (self.hasTorrent(infoHash) || self.isPending(infoHash)) return; //this._client.get(val.infoHash)) return;
@@ -463,9 +463,9 @@ Keeper.prototype.seed = function (val) {
   }
 }
 
-Keeper.prototype.validate = function (key, val) {
+Keeper.prototype.validate = function(key, val) {
   return Q.ninvoke(utils, 'getInfoHash', val)
-    .then(function (infoHash) {
+    .then(function(infoHash) {
       if (key !== infoHash) throw utils.httpError(400, 'Key must be the infohash of the value, in this case: ' + infoHash);
     });
 }
@@ -473,7 +473,7 @@ Keeper.prototype.validate = function (key, val) {
 /**
  *  @return {Q.Promise} promise that resolves when the swarm for {key} reaches {count}
  */
-Keeper.prototype.replicate = function (key, val, count) {
+Keeper.prototype.replicate = function(key, val, count) {
   if (this.torrent(key)) {
     // if (!this.isFullyReplicated(key)) {
     //   // reannounce
@@ -497,9 +497,9 @@ Keeper.prototype.replicate = function (key, val, count) {
  *  @param {string|Torrent} infoHash
  *  @return the number of peers we currently know of for {infoHash}
  */
-Keeper.prototype.peersCount = function (infoHash) {
+Keeper.prototype.peersCount = function(infoHash) {
   // var cached = this._client.get(key);
-  // var numPeers = getNestedProperty(cached, 'swarm._peersLength');  
+  // var numPeers = getNestedProperty(cached, 'swarm._peersLength');
   // return numPeers || 0;
   requireParam('infoHash', infoHash);
   infoHash = this.infoHash(infoHash); // normalize
@@ -508,7 +508,7 @@ Keeper.prototype.peersCount = function (infoHash) {
   return peers ? peers.list.length : 0;
 }
 
-Keeper.prototype.torrent = function (infoHash) {
+Keeper.prototype.torrent = function(infoHash) {
   requireParam('infoHash', infoHash);
 
   if (typeof infoHash === 'string') return this._client.get(infoHash);
@@ -516,7 +516,7 @@ Keeper.prototype.torrent = function (infoHash) {
   return infoHash;
 }
 
-Keeper.prototype.infoHash = function (torrent) {
+Keeper.prototype.infoHash = function(torrent) {
   requireParam('torrent', torrent);
 
   if (typeof torrent === 'string') return torrent;
@@ -524,7 +524,7 @@ Keeper.prototype.infoHash = function (torrent) {
   return torrent.infoHash;
 }
 
-Keeper.prototype.desiredReplication = function (torrent) {
+Keeper.prototype.desiredReplication = function(torrent) {
   requireParam('torrent', torrent);
 
   torrent = this.torrent(torrent); // normalize
@@ -534,7 +534,7 @@ Keeper.prototype.desiredReplication = function (torrent) {
   return repl || 10;
 }
 
-Keeper.prototype.percentReplication = function (torrent) {
+Keeper.prototype.percentReplication = function(torrent) {
   requireParam('torrent', torrent);
 
   torrent = this.torrent(torrent); // normalize
@@ -544,52 +544,51 @@ Keeper.prototype.percentReplication = function (torrent) {
   return desiredRepl ? 100 * numPeers / desiredRepl : Infinity;
 }
 
-Keeper.prototype.isFullyReplicated = function (torrent) {
+Keeper.prototype.isFullyReplicated = function(torrent) {
   return this.percentReplication(torrent) >= 100;
 }
 
-Keeper.prototype.get = Keeper.prototype.getMany = function (keys) {
+Keeper.prototype.get = Keeper.prototype.getMany = function(keys) {
   // var self = this;
   if (!Array.isArray(keys))
     keys = [keys];
 
   return Q.allSettled(keys.map(this.getOne))
-    .then(function (results) {
-      return results.map(function (r) {
+    .then(function(results) {
+      return results.map(function(r) {
         return r.value;
       })
     });
 }
 
-Keeper.prototype.getOne = function (key) {
+Keeper.prototype.getOne = function(key) {
   var self = this;
 
   return this.storage()
     .getOne(key)
-    .then(function (val) {
+    .then(function(val) {
       if (typeof val === 'undefined') throw new Error('not found')
 
       return val;
     })
-    .catch(function (err) {
+    .catch(function(err) {
       return self.promise(key, 1000); // timeout
     })
 }
-
 
 /**
  *  Promise to load a torrent with infoHash {key}
  *  @param {string} infoHash
  *  @return {Q.Promise} promise that resolves with torrent file contents (not torrent metadata, but actual data)
  */
-Keeper.prototype.promise = function (infoHash, timeout) {
+Keeper.prototype.promise = function(infoHash, timeout) {
   var self = this;
   var deferred = defer(timeout);
 
   this.on('put:' + infoHash, deferred.resolve);
   this.on('error:' + infoHash, deferred.reject);
 
-  deferred.promise.finally(function () {
+  deferred.promise.finally(function() {
     self.removeListener('put:' + infoHash, deferred.resolve);
     self.removeListener('error:' + infoHash, deferred.reject);
   });
@@ -598,34 +597,34 @@ Keeper.prototype.promise = function (infoHash, timeout) {
   return deferred.promise;
 }
 
-Keeper.prototype.isKeeper = function () {
+Keeper.prototype.isKeeper = function() {
   return true;
 }
 
-Keeper.prototype.put = function (key, value) {
+Keeper.prototype.put = function(key, value) {
   var self = this;
 
   if (typeof value !== 'undefined') {
-    return this.validate(key, value).then(function () {
+    return this.validate(key, value).then(function() {
       return self._doPut(key, value);
     });
   } else {
     value = key;
     requireParam('value', value);
-    return Q.ninvoke(utils, 'getInfoHash', value).then(function (infoHash) {
+    return Q.ninvoke(utils, 'getInfoHash', value).then(function(infoHash) {
       return self._doPut(infoHash, value);
     });
   }
 }
 
-Keeper.prototype._doPut = function (key, val) {
+Keeper.prototype._doPut = function(key, val) {
   var self = this;
 
   return self.storage()
     .putOne(key, val, {
       overwrite: true
     })
-    .then(function (put) {
+    .then(function(put) {
       if (!put) return; // all is good, but we already had this key/value
 
       self._debug('put ' + key);
@@ -636,24 +635,24 @@ Keeper.prototype._doPut = function (key, val) {
     });
 }
 
-Keeper.prototype.externalIp = function (ip) {
+Keeper.prototype.externalIp = function(ip) {
   if (ip) this._externalIp = ip;
 
   return this._externalIp;
 }
 
-Keeper.prototype.clear = function () {
+Keeper.prototype.clear = function() {
   return this.storage().clear();
 }
 
-Keeper.prototype.exitIfErr = function (err) {
+Keeper.prototype.exitIfErr = function(err) {
   if (err) {
     this._debug(err);
     process.exit();
   }
 }
 
-Keeper.prototype.mapPorts = function () {
+Keeper.prototype.mapPorts = function() {
   var dhtPort = this.config('dhtPort');
   var torrentPort = this.config('torrentPort');
 
@@ -673,7 +672,7 @@ Keeper.prototype.mapPorts = function () {
 function inMemoryStorage() {
   var map = {};
   return {
-    putOne: function (key, val) {
+    putOne: function(key, val) {
       var numPut = 0;
       if (!(key in map)) {
         map[key] = val;
@@ -682,18 +681,18 @@ function inMemoryStorage() {
 
       return Q.resolve(numPut);
     },
-    getOne: function (key) {
+    getOne: function(key) {
       return (key in map) ? Q.resolve(map[key]) : Q.resolve();
     },
-    getMany: function (keys) {
-      return Q.resolve(keys.map(function (key) {
+    getMany: function(keys) {
+      return Q.resolve(keys.map(function(key) {
         return map[key];
       }));
     },
-    getAll: function () {
+    getAll: function() {
       return Q.resolve(values(map));
     },
-    close: function () {
+    close: function() {
       return Q.resolve();
     }
   }
@@ -703,7 +702,7 @@ function getFileData(torrent) {
   var pieces = torrent.files[0].pieces;
 
   return Buffer.concat(pieces.map(
-    function (piece) {
+    function(piece) {
       return piece.buffer
     }
   ));
@@ -722,11 +721,11 @@ function defer(timeout) {
   var deferred = Q.defer();
   if (typeof timeout === 'undefined') return deferred;
 
-  var timeoutId = setTimeout(function () {
+  var timeoutId = setTimeout(function() {
     deferred.reject(new Error('timeout'));
   }, timeout);
 
-  deferred.promise.finally(function () {
+  deferred.promise.finally(function() {
     clearTimeout(timeoutId);
   });
 

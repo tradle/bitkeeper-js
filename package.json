@@ -5,13 +5,14 @@
   "main": "index.js",
   "scripts": {
     "postinstall": "cp node_modules/tradle-style/.js* .",
-    "jsbeautify": "js-beautify -r **.js",
-    "jshint": "jshint **.js",
+    "jsbeautify": "js-beautify -r {*.js,lib/*.js,test/*.js}",
+    "jshint": "jshint {*.js,**/*.js}",
+    "jscs": "jscs {*.js,**/*.js}",
     "test": "node test/*.js"
   },
   "pre-commit": [
     "test",
-    "jsbeautify",
+    "jscs",
     "jshint"
   ],
   "repository": {
@@ -67,12 +68,12 @@
     "webtorrent": "0.27.0"
   },
   "devDependencies": {
-    "buffer-equal": "0.0.1",
-    "pre-commit": "0.0.11",
-    "js-beautify": "latest",
+    "js-beautify": "^1.5.4",
+    "jscs": "^1.10.0",
     "jshint": "latest",
-    "tradle-style": "latest",
     "minimist": "^1.1.0",
-    "tape": "^3.2.0"
+    "pre-commit": "0.0.11",
+    "tape": "^3.2.0",
+    "tradle-style": "latest"
   }
 }
