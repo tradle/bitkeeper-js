@@ -4,10 +4,9 @@
   "description": "Tradle bitkeeper component in JS",
   "main": "index.js",
   "scripts": {
-    "postinstall": "cp node_modules/tradle-style/.js* .",
-    "jsbeautify": "js-beautify -r {*.js,lib/*.js,test/*.js}",
-    "jshint": "jshint {*.js,**/*.js}",
-    "jscs": "jscs {*.js,**/*.js}",
+    "jsbeautify": "js-beautify -r {*.js,lib/*.js,test/*.js} --config node_modules/tradle-style/.jsbeautifyrc",
+    "jshint": "jshint {*.js,**/*.js} --config node_modules/tradle-style/.jshintrc",
+    "jscs": "jscs {*.js,lib/*.js,test/*.js} --config node_modules/tradle-style/.jscsrc",
     "test": "node test/*.js"
   },
   "pre-commit": [
