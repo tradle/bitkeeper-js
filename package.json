@@ -43,7 +43,7 @@
   "license": "MIT",
   "dependencies": {
     "bitkeeper-client-js": "git://github.com/tradle/bitkeeper-client-js.git",
-    "bittorrent-dht": "git://github.com/mvayngrib/bittorrent-dht.git#8ed4eb4",
+    "bittorrent-dht": "git://github.com/mvayngrib/bittorrent-dht.git",
     "body-parser": "^1.10.0",
     "browserify-fs": "^1.0.0",
     "bs58": "^2.0.1",
