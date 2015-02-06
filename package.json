@@ -42,8 +42,7 @@
   },
   "license": "MIT",
   "dependencies": {
-    "bitkeeper-client-js": "git://github.com/tradle/bitkeeper-client-js.git",
-    "bittorrent-dht": "git://github.com/mvayngrib/bittorrent-dht.git",
+    "bittorrent-dht": "git://github.com/mvayngrib/bittorrent-dht.git#5f53c9",
     "body-parser": "^1.10.0",
     "browserify-fs": "^1.0.0",
     "bs58": "^2.0.1",
@@ -56,15 +55,15 @@
     "mkdirp": "^0.5.0",
     "nedb": "^1.0.1",
     "parse-torrent": "^2.3.0",
-    "promise-ports": "git://github.com/tradle/promise-ports.git",
+    "promise-ports": "git://github.com/tradle/promise-ports.git#bf985c",
     "q": "^1.1.2",
     "re-emitter": "^1.0.0",
     "rimraf": "^2.2.8",
     "simple-get": "^1.3.0",
-    "simple-jobs": "git://github.com/tradle/simple-jobs.git",
-    "tradle-utils": "git://github.com/tradle/tradle-utils.git",
+    "simple-jobs": "^0.0.1",
+    "tradle-utils": "git://github.com/tradle/tradle-utils.git#590eef",
     "walk": "^2.3.5",
-    "webtorrent": "0.27.0"
+    "webtorrent": "git://github.com/tradle/webtorrent#e6c5bd"
   },
   "devDependencies": {
     "js-beautify": "^1.5.4",

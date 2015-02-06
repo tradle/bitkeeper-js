@@ -47,19 +47,12 @@ taptest('replication across all keepers', function(t) {
       return Q.all(tasks);
     })
     .then(function(results) {
-      var lastDHT = dhts[dhts.length - 1];
-      dhts[0].addNode('127.0.0.1:' + lastDHT.port, lastDHT.nodeId);
-
-      for (var i = 1; i < dhts.length; i++) {
-        var prev = dhts[i - 1];
-        dhts[i].addNode('127.0.0.1:' + prev.port, prev.nodeId);
-      }
+      friendNext(dhts);
 
       var configs = dhts.map(function(dht, i) {
         var kConfig = common.clone(config);
         kConfig.torrentPort = config.torrentPort + i;
         kConfig.dhtPort = config.dhtPort + i;
-        kConfig.port = config.port + i;
         kConfig.dht = dht;
         return kConfig;
       });
@@ -71,14 +64,16 @@ taptest('replication across all keepers', function(t) {
       // wait for every torrent to be replicated on every keeper
       return Q.all(infoHashes.map(function(infoHash, idx) {
         infoHashes[idx] = infoHash;
-        var keeper = keepers[idx % numInstances];
-        keeper.put(infoHashes[idx], data[idx]);
-
-        return Q.all(keepers.map(function(k, i) {
+        var kIdx = idx % numInstances;
+        var keeper = keepers[kIdx];
+        var allDone = Q.all(keepers.map(function(k, i) {
           var deferred = Q.defer();
           k.on('done:' + infoHash, function(torrent) {
             var timesReplicated = keepers.reduce(function(memo, k) {
-              return memo + (k.torrent(infoHash) ? 1 : 0);
+              var torrent = k._client.get(infoHash);
+              if (torrent && torrent.files[0] && torrent.files[0].done) memo++;
+
+              return memo;
             }, 0);
 
             t.pass('Keeper ' + i + ' has ' + infoHash + ', replication count: ' + timesReplicated + '/' + keepers.length);
@@ -87,6 +82,10 @@ taptest('replication across all keepers', function(t) {
 
           return deferred.promise;
         }))
+
+        // console.log('Saving ' + infoHashes[idx] + ' to Keeper ' + kIdx);
+        keeper.put(infoHash, data[idx]);
+        return allDone;
       }))
     })
     .then(function() {
@@ -117,4 +116,16 @@ function startInSeries(configs) {
       });
     });
   }, Q.all([]));
+}
+
+/**
+ *  Everyone friends the guy in front of them
+ *  This should guarantee that anyone can find anyone else (with enough queries)
+ */
+function friendNext(dhts) {
+  var l = dhts.length
+  for (var i = 0; i < l; i++) {
+    var next = dhts[(i + 1) % l]
+    dhts[i].addNode('127.0.0.1:' + next.port, next.nodeId)
+  }
 }
