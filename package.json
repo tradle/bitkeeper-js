@@ -41,7 +41,7 @@
   },
   "license": "MIT",
   "dependencies": {
-    "bittorrent-dht": "git://github.com/mvayngrib/bittorrent-dht.git",
+    "bittorrent-dht": "git://github.com/tradle/bittorrent-dht.git",
     "browserify-fs": "^1.0.0",
     "bs58": "^2.0.1",
     "chrome-dgram": "^2.1.0",
