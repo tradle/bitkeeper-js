@@ -1,6 +1,7 @@
 'use strict';
 
 var Q = require('q');
+var fs = require('fs');
 var mkdirp = require('mkdirp');
 var debug = require('debug')('bitkeeper-js');
 var utils = require('tradle-utils');
@@ -14,6 +15,7 @@ var EventEmitter = require('events').EventEmitter;
 var inherits = require('util').inherits;
 var Jobs = require('simple-jobs');
 var ports = require('promise-ports');
+var DHT = require('bittorrent-dht');
 
 function Keeper(config) {
   EventEmitter.call(this);
@@ -33,6 +35,7 @@ function Keeper(config) {
   this.on('error', this._onerror);
 }
 
+Keeper.DHT = DHT;
 inherits(Keeper, EventEmitter);
 
 Keeper.prototype._onerror = function(err, torrent) {
@@ -116,7 +119,7 @@ Keeper.prototype._initTorrentClient = function() {
   this._client = new WebTorrent({
     dht: this._dht,
     tracker: false,
-    dhtPort: this.config('dhtPort') || this._dht.port,
+    dhtPort: this.config('dhtPort') || this._dht.address().port,
     torrentPort: this.config('torrentPort')
   });
 
@@ -305,14 +308,14 @@ Keeper.prototype.seedStored = function() {
 
 Keeper.prototype._loadDHT = function() {
   var self = this;
+  var dhtPromise;
 
-  var getDHT;
   if (this.config('dht'))
-    getDHT = Q.resolve(this.config('dht'));
+    dhtPromise = Q.resolve(this.config('dht'));
   else
-    getDHT = common.dht(this._dhtPath);
+    dhtPromise = getDHT(this._dhtPath);
 
-  return getDHT.then(function(dht) {
+  return dhtPromise.then(function(dht) {
     self._dht = dht;
     self.onDHTReady(self._watchDHT);
     self.onDHTReady(self._checkReady);
@@ -401,13 +404,15 @@ Keeper.prototype.storage = function() {
 }
 
 Keeper.prototype.config = function(configOption, value) {
-  if (arguments.length === 1) {
-    return typeof configOption === 'undefined' ?
-      this._config :
-      this._config[configOption];
+  switch (arguments.length) {
+    case 0:
+      return this._config;
+    case 1:
+      return this._config[configOption];
+    case 2:
+      this._config[configOption] = value;
+      break;
   }
-
-  this._config[configOption] = value;
 }
 
 Keeper.prototype.hasTorrent = function(infoHash) {
@@ -739,6 +744,24 @@ function values(obj) {
   }
 
   return vals;
+}
+
+function getDHT(filePath) {
+  if (!filePath) return Q.resolve(new Keeper.DHT());
+
+  filePath = path.resolve(filePath);
+  return Q.ninvoke(fs, 'readFile', filePath)
+    .then(function(buf) {
+      var nodes = JSON.parse(buf.toString());
+      if (!nodes.length) return getDHT();
+
+      return new Keeper.DHT({
+        bootstrap: nodes
+      });
+    })
+    .catch(function(err) {
+      return getDHT();
+    });
 }
 
 module.exports = Keeper;
