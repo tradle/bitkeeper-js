@@ -281,11 +281,11 @@ Keeper.prototype.getTorrent = function(infoHash, cb) {
 Keeper.prototype._initFromStorage = function() {
   var self = this;
 
-  var dir = this.config('storage') || 'storage';
+  var dir = path.resolve(this.config('storage') || 'storage');
   this.config('storage', dir);
 
-  var txDir = path.join(__dirname, dir, 'txs');
-  this._dhtPath = path.join(__dirname, dir, 'dht.json');
+  var txDir = path.join(dir, 'txs');
+  this._dhtPath = path.join(dir, 'dht.json');
 
   Q.nfcall(mkdirp, txDir)
     .done(function() {
