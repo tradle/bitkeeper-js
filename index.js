@@ -15,7 +15,7 @@ var EventEmitter = require('events').EventEmitter;
 var inherits = require('util').inherits;
 var Jobs = require('simple-jobs');
 var ports = require('promise-ports');
-var DHT = require('bittorrent-dht');
+var DHT = require('bittorrent-dht/client');
 
 function Keeper(config) {
   EventEmitter.call(this);
@@ -577,7 +577,7 @@ Keeper.prototype.getOne = function(key) {
       return val;
     })
     .catch(function(err) {
-      return self.promise(key, 1000); // timeout
+      return self.promise(key, 10000); // timeout
     })
 }
 
