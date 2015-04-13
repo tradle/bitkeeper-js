@@ -356,8 +356,8 @@ Keeper.prototype.destroy = function() {
   this.removeAllListeners();
   this._jobs.clear();
 
-  return Q.all([
-    Q.ninvoke(this._client, 'destroy'), // destroys DHT internally
+  return Q.allSettled([
+    this._client && Q.ninvoke(this._client, 'destroy'), // destroys DHT internally
     this._storage.close()
   ]).then(function() {
     self._client.removeAllListeners();
