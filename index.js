@@ -116,6 +116,8 @@ Keeper.prototype._watchDHT = function() {
 }
 
 Keeper.prototype._initTorrentClient = function() {
+  if (this._destroyed) return;
+
   this._client = new WebTorrent({
     dht: this._dht,
     tracker: false,
@@ -193,6 +195,8 @@ Keeper.prototype.judge = function(torrent) {
 }
 
 Keeper.prototype.checkReplication = function() {
+  if (this._destroyed) return;
+
   var self = this;
 
   var torrents = this._client.torrents;
@@ -316,6 +320,8 @@ Keeper.prototype._loadDHT = function() {
     dhtPromise = getDHT(this._dhtPath);
 
   return dhtPromise.then(function(dht) {
+    if (self._destroyed) return dht.destroy();
+
     self._dht = dht;
     self.onDHTReady(self._watchDHT);
     self.onDHTReady(self._checkReady);
@@ -356,13 +362,17 @@ Keeper.prototype.destroy = function() {
   this.removeAllListeners();
   this._jobs.clear();
 
-  return Q.allSettled([
-    this._client && Q.ninvoke(this._client, 'destroy'), // destroys DHT internally
-    this._storage.close()
-  ]).then(function() {
-    self._client.removeAllListeners();
-    self._dht.removeAllListeners();
-  });
+  var tasks = [];
+  if (this._storage) {
+    tasks.push(this._storage.close())
+  }
+
+  if (this._client) {
+    // destroys DHT internally
+    tasks.push(Q.ninvoke(this._client, 'destroy'));
+  }
+
+  return Q.allSettled(tasks);
 }
 
 /**
