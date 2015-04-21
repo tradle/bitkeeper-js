@@ -1,5 +1,8 @@
 'use strict';
 
+var override = require('./lib/override');
+override(require('net'), require('utp'))
+
 var Q = require('q');
 var fs = require('fs');
 var mkdirp = require('mkdirp');
@@ -646,6 +649,10 @@ Keeper.prototype._doPut = function(key, val) {
       self.emit('put', key, val);
       self.emit('put:' + key, val);
       self.seed(val);
+      return {
+        key: key,
+        val: val
+      }
       // self._dht.announce(key, self.torrentPort());
     });
 }
