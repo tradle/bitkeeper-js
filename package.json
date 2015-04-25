@@ -49,6 +49,7 @@
     "concat-stream": "^1.4.7",
     "create-torrent": "^3.2.1",
     "debug": "^2.1.0",
+    "holepunch": "git://github.com/mvayngrib/holepunch",
     "mkdirp": "^0.5.0",
     "nedb": "^1.0.1",
     "parse-torrent": "^2.3.0",
@@ -61,7 +62,7 @@
     "tradle-utils": "^0.1.0",
     "utp": "git://github.com/mvayngrib/utp#dev",
     "walk": "^2.3.5",
-    "webtorrent": "git://github.com/tradle/webtorrent.git"
+    "webtorrent": "git://github.com/tradle/webtorrent#dev"
   },
   "devDependencies": {
     "js-beautify": "^1.5.4",
