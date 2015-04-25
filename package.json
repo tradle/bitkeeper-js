@@ -49,7 +49,6 @@
     "concat-stream": "^1.4.7",
     "create-torrent": "^3.2.1",
     "debug": "^2.1.0",
-    "holepunch": "git://github.com/mvayngrib/holepunch",
     "mkdirp": "^0.5.0",
     "nedb": "^1.0.1",
     "parse-torrent": "^2.3.0",

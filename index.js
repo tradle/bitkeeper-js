@@ -152,7 +152,6 @@ Keeper.prototype.checkTorrentReplication = function(torrent) {
   this.judge(torrent)
     .then(function(verdict) {
       if (verdict.replicate) {
-        self._dht.announce(torrent.infoHash, self.config('torrentPort'));
         self.seed(torrent);
       } else if (verdict.drop) return self.delayDrop(torrent);
       // else {
@@ -446,39 +445,32 @@ Keeper.prototype.markPending = function(infoHash, torrent) {
 Keeper.prototype.seed = function(val) {
   if (this.config('private')) return;
 
-  var self = this;
-
   requireParam('val', val);
 
-  if (val.infoHash) {
-    // val is Torrent
-    var infoHash = val.infoHash;
-    if (this.hasTorrent(infoHash) || this.isPending(infoHash)) return; //this._client.get(val.infoHash)) return;
+  var self = this;
+  var getInfoHash;
+  if (val.infoHash) getInfoHash = Q(val.infoHash);
+  else {
+    if (typeof val === 'string') val = common.buffer(val);
 
-    this.markPending(infoHash);
-    this._debug('1. Replicating torrent: ' + infoHash);
-    return seed();
+    getInfoHash = Q.ninvoke(utils, 'getInfoHash', val);
   }
 
-  if (typeof val === 'string')
-    val = common.buffer(val);
+  getInfoHash.then(function(infoHash) {
+    if (self._destroyed) return;
 
-  utils.getInfoHash(val, function(err, infoHash) {
-    if (err) throw err;
-
+    self._dht.announce(infoHash, self.config('torrentPort'));
+    self._dht.lookup(infoHash);
     if (self.hasTorrent(infoHash) || self.isPending(infoHash)) return; //this._client.get(val.infoHash)) return;
 
+    self._debug('1. Replicating torrent: ' + infoHash);
     self.markPending(infoHash);
-    seed();
-  });
-
-  function seed() {
-    if (self._destroyed) return;
 
     self._client.seed(val, {
       name: utils.getTorrentName(val)
     });
-  }
+  })
+  .done();
 }
 
 Keeper.prototype.validate = function(key, val) {
