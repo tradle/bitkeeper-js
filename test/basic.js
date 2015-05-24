@@ -1,3 +1,4 @@
+require('../lib/socket-hacks')
 var taptest = require('tape');
 var Q = require('q');
 var utils = require('tradle-utils');
@@ -7,15 +8,13 @@ var ports = require('promise-ports');
 var helper = require('./helper');
 baseConfig.storage = false;
 
-var data = [];
-// var ips = {
-//   internal: '127.0.0.1',
-//   external: null
-// };
-
-for (var i = 0; i < 3; i++) {
-  data[i] = crypto.randomBytes(1024);
-}
+var data = [
+  'bill',
+  'ted',
+  'rufus'
+].map(function(d) {
+  return new Buffer(d)
+});
 
 // taptest('setup', function(t) {
 //   ports.externalIp()
@@ -61,7 +60,7 @@ function testReplication(external) {
             k.on('done:' + infoHash, function(torrent) {
               var timesReplicated = keepers.reduce(function(memo, k) {
                 var torrent = k._client.get(infoHash);
-                if (torrent && torrent.files[0] && torrent.files[0].done) memo++;
+                if (torrent && torrent.storage && torrent.storage.done) memo++;
 
                 return memo;
               }, 0);

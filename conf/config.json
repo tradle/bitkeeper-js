@@ -1,7 +1,6 @@
 {
-  "torrentPort": 8889,
   "dhtPort":  7778,
-  "checkReplication": 10000,
+  "checkReplication": 3000000,
   "storage": "storage",
   "bootstrap": [
     "tradle.io:7778"

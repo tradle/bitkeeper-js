@@ -4,12 +4,12 @@
   "description": "Tradle bitkeeper component in JS",
   "main": "index.js",
   "scripts": {
-    "jsbeautify": "js-beautify -r {*.js,lib/*.js,test/*.js} --config node_modules/tradle-style/.jsbeautifyrc",
     "jshint": "jshint {*.js,**/*.js} --config node_modules/tradle-style/.jshintrc",
     "jscs": "jscs {*.js,lib/*.js,test/*.js} --config node_modules/tradle-style/.jscsrc",
     "test": "node test/*.js"
   },
   "pre-commit": [
+    "jshint",
     "jscs",
     "test"
   ],
@@ -36,13 +36,11 @@
     "promise-ports": false,
     "net": "chrome-net",
     "dgram": "chrome-dgram",
-    "fs": "browserify-fs",
     "dns": "dns.js"
   },
   "license": "MIT",
   "dependencies": {
     "bittorrent-dht": "git://github.com/tradle/bittorrent-dht.git",
-    "browserify-fs": "^1.0.0",
     "bs58": "^2.0.1",
     "chrome-dgram": "^2.1.0",
     "chrome-net": "^2.4.0",
@@ -54,14 +52,16 @@
     "parse-torrent": "^2.3.0",
     "promise-ports": "git://github.com/tradle/promise-ports.git#bf985c",
     "q": "^1.1.2",
-    "re-emitter": "^1.0.0",
+    "re-emitter": "^1.1.1",
     "rimraf": "^2.2.8",
     "simple-get": "^1.3.0",
     "simple-jobs": "^0.0.1",
+    "sock-jack": "git://github.com/mvayngrib/sock-jack.git",
+    "timeouts": "0.0.1",
     "tradle-utils": "^0.1.0",
     "utp": "git://github.com/mvayngrib/utp#dev",
     "walk": "^2.3.5",
-    "webtorrent": "git://github.com/tradle/webtorrent#dev"
+    "webtorrent": "git://github.com/tradle/webtorrent.git"
   },
   "devDependencies": {
     "js-beautify": "^1.5.4",
