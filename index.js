@@ -19,7 +19,7 @@ var Jobs = require('simple-jobs')
 var Timeouts = require('timeouts')
 var ports = require('promise-ports')
 var DHT = require('bittorrent-dht/client')
-var noop = function() {}
+var noop = function () {}
 
 function Keeper (config) {
   EventEmitter.call(this)
@@ -279,7 +279,6 @@ Keeper.prototype.download = function (infoHash, cb) {
 
   if (cached) return cb(null, cached)
 
-  if (this.hasTorrent(infoHash)) debugger
   this._client.add(infoHash)
   this.once('torrent:' + infoHash, function (torrent) {
     if (cb) cb(null, torrent)
@@ -443,7 +442,6 @@ Keeper.prototype.isSeeding = function (infoHash) {
  *  @param {string|Buffer|Torrent} val
  */
 Keeper.prototype.seed = function (val) {
-  if (typeof val === 'string') debugger
   if (this.config('private')) return
 
   requireParam('val', val)
@@ -464,23 +462,24 @@ Keeper.prototype.seed = function (val) {
     getTorrent = Q.ninvoke(utils, 'createTorrent', val)
   }
 
-  getTorrent.then(function (_torrent) {
-    if (self._destroyed) return
+  getTorrent
+    .then(function (_torrent) {
+      if (self._destroyed) return
 
-    torrent = _torrent
-    infoHash = torrent.infoHash
-    self._dht.announce(infoHash, self.torrentPort())
-    self._dht.lookup(infoHash)
-    if (self.isSeeding(infoHash)) return
+      torrent = _torrent
+      infoHash = torrent.infoHash
+      self._dht.announce(infoHash, self.torrentPort())
+      self._dht.lookup(infoHash)
+      if (self.isSeeding(infoHash)) return
 
-    self._seeding[infoHash] = true
-    if (self.hasTorrent(infoHash)) {
-      return Q.ninvoke(self, 'removeTorrent', infoHash)
-        .then(seed)
-    }
-    else seed()
-  })
-  .done()
+      self._seeding[infoHash] = true
+      if (self.hasTorrent(infoHash)) {
+        return Q.ninvoke(self, 'removeTorrent', infoHash)
+          .then(seed)
+      }
+      else seed()
+    })
+    .done()
 
   function seed () {
     self._debug('seeding: ' + infoHash)
@@ -491,7 +490,7 @@ Keeper.prototype.seed = function (val) {
   }
 }
 
-Keeper.prototype.replicate = function(infoHash) {
+Keeper.prototype.replicate = function (infoHash) {
   if (this.isSeeding(infoHash)) this.seed(this.torrent(infoHash))
   else this.download(infoHash)
 }
