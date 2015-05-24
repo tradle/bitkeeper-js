@@ -4,7 +4,8 @@
   "description": "Tradle bitkeeper component in JS",
   "main": "index.js",
   "scripts": {
-    "test": "standard && node test/*.js"
+    "style": "standard",
+    "test": "node test/*.js"
   },
   "pre-commit": [
     "test"
