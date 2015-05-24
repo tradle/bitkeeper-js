@@ -19,6 +19,7 @@ var Jobs = require('simple-jobs')
 var Timeouts = require('timeouts')
 var ports = require('promise-ports')
 var DHT = require('bittorrent-dht/client')
+var noop = function() {}
 
 function Keeper (config) {
   EventEmitter.call(this)
@@ -154,8 +155,10 @@ Keeper.prototype.checkTorrentReplication = function (torrent) {
   this.judge(torrent)
     .then(function (verdict) {
       if (verdict.replicate) {
-        self.getTorrent(torrent)
-      } else if (verdict.drop) return self.delayDrop(torrent)
+        self.replicate(torrent)
+      } else if (verdict.drop) {
+        return self.delayDrop(torrent)
+      }
     // else {
     //   // recheck soon and drop
     //   setTimeout(function() {
@@ -200,13 +203,9 @@ Keeper.prototype.judge = function (torrent) {
 Keeper.prototype.checkReplication = function () {
   if (this._destroyed) return
 
-  var self = this
-
   var torrents = this._client.torrents
   if (torrents) {
-    torrents.forEach(function (torrent) {
-      self.checkTorrentReplication(torrent)
-    })
+    torrents.forEach(this.checkTorrentReplication, this)
   }
 }
 
@@ -221,6 +220,7 @@ Keeper.prototype._ontorrent = function (torrent) {
   })
 
   torrent.once('done', function () {
+    self._seeding[torrent.infoHash] = true
     self.emit('done:' + torrent.infoHash, torrent)
     self.put(getFileData(torrent))
   })
@@ -240,7 +240,7 @@ Keeper.prototype.addPeer = function (addr, torrent) {
     var infoHash = torrent
     torrent = this.torrent(infoHash)
     if (!torrent) {
-      return this.getTorrent(infoHash, function (err, torrent) {
+      return this.download(infoHash, function (err, torrent) {
         if (err) throw err
 
         self.addPeer(addr, torrent)
@@ -272,14 +272,15 @@ Keeper.prototype.removeTorrent = function (torrent, cb) {
   }
 }
 
-Keeper.prototype.getTorrent = function (infoHash, cb) {
+Keeper.prototype.download = function (infoHash, cb) {
   var self = this
+  var cached = this.torrent(infoHash)
+  cb = cb || noop
 
-  var cached = this._client.get(infoHash)
   if (cached) return cb(null, cached)
 
-  if (!this.hasTorrent(infoHash)) this._client.add(infoHash)
-
+  if (this.hasTorrent(infoHash)) debugger
+  this._client.add(infoHash)
   this.once('torrent:' + infoHash, function (torrent) {
     if (cb) cb(null, torrent)
     else self._debug('Got torrent: ' + torrent.infoHash)
@@ -308,9 +309,7 @@ Keeper.prototype.seedStored = function () {
   if (!this.ready()) return this.on('ready', this.seedStored)
 
   this._storage.getAll().then(function (vals) {
-    vals.forEach(function (val) {
-      self.seed(val)
-    })
+    vals.forEach(self.seed)
   })
 }
 
@@ -432,6 +431,7 @@ Keeper.prototype.config = function (configOption, value) {
 }
 
 Keeper.prototype.hasTorrent = function (infoHash) {
+  infoHash = this.infoHash(infoHash)
   return this.isSeeding(infoHash) || !!this._client.get(infoHash)
 }
 
@@ -443,6 +443,7 @@ Keeper.prototype.isSeeding = function (infoHash) {
  *  @param {string|Buffer|Torrent} val
  */
 Keeper.prototype.seed = function (val) {
+  if (typeof val === 'string') debugger
   if (this.config('private')) return
 
   requireParam('val', val)
@@ -452,7 +453,9 @@ Keeper.prototype.seed = function (val) {
   var torrent
   var infoHash
   if (val.infoHash) {
-    if (this.isSeeding(infoHash)) return
+    if (!(this.isSeeding(val.infoHash) || (val.storage && val.storage.done))) {
+      throw new Error('you can only seed torrents whose contents have been downloaded')
+    }
 
     getTorrent = Q(val)
   } else {
@@ -473,19 +476,24 @@ Keeper.prototype.seed = function (val) {
     self._seeding[infoHash] = true
     if (self.hasTorrent(infoHash)) {
       return Q.ninvoke(self, 'removeTorrent', infoHash)
-        .then(add)
+        .then(seed)
     }
-    else add()
+    else seed()
   })
-    .done()
+  .done()
 
-  function add () {
-    self._debug('1. Replicating torrent: ' + infoHash)
+  function seed () {
+    self._debug('seeding: ' + infoHash)
 
     self._client.seed(val, {
       name: utils.getTorrentName(val)
     })
   }
+}
+
+Keeper.prototype.replicate = function(infoHash) {
+  if (this.isSeeding(infoHash)) this.seed(this.torrent(infoHash))
+  else this.download(infoHash)
 }
 
 Keeper.prototype.validate = function (key, val) {
@@ -495,28 +503,28 @@ Keeper.prototype.validate = function (key, val) {
     })
 }
 
-/**
- *  @return {Q.Promise} promise that resolves when the swarm for {key} reaches {count}
- */
-Keeper.prototype.replicate = function (key, val, count) {
-  if (this.torrent(key)) {
-    // if (!this.isFullyReplicated(key)) {
-    //   // reannounce
-    //   this._dht.announce(key, this.torrentPort())
-    // }
+// /**
+//  *  @return {Q.Promise} promise that resolves when the swarm for {key} reaches {count}
+//  */
+// Keeper.prototype.replicate = function (key, val, count) {
+//   if (this.torrent(key)) {
+//     // if (!this.isFullyReplicated(key)) {
+//     //   // reannounce
+//     //   this._dht.announce(key, this.torrentPort())
+//     // }
 
-    return Q.resolve()
-  }
+//     return Q.resolve()
+//   }
 
-  var replicatedEvent = 'fullyReplicated:' + key
-  var valBuf = common.buffer(val)
-  var deferred = Q.defer()
+//   var replicatedEvent = 'fullyReplicated:' + key
+//   var valBuf = common.buffer(val)
+//   var deferred = Q.defer()
 
-  this.seed(valBuf)
-  this.once(replicatedEvent, deferred.resolve)
+//   this.seed(valBuf)
+//   this.once(replicatedEvent, deferred.resolve)
 
-  return deferred.promise
-}
+//   return deferred.promise
+// }
 
 /**
  *  @param {string|Torrent} infoHash
@@ -619,7 +627,7 @@ Keeper.prototype.promise = function (infoHash, timeout) {
     self.removeListener('error:' + infoHash, deferred.reject)
   })
 
-  this.getTorrent(infoHash)
+  this.download(infoHash)
   return deferred.promise
 }
 
@@ -656,7 +664,8 @@ Keeper.prototype._doPut = function (key, val) {
       self._debug('put ' + key)
       self.emit('put', key, val)
       self.emit('put:' + key, val)
-      self.seed(val)
+      if (!self.isSeeding(key)) self.seed(val)
+
       return {
         key: key,
         val: val
@@ -665,10 +674,8 @@ Keeper.prototype._doPut = function (key, val) {
     })
 }
 
-Keeper.prototype.externalIp = function (ip) {
-  if (ip) this._externalIp = ip
-
-  return this._externalIp
+Keeper.prototype.publicAddress = function (ip) {
+  return this._dht.publicAddress.apply(this._dht, ip)
 }
 
 Keeper.prototype.clear = function () {
