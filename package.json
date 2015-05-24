@@ -4,13 +4,9 @@
   "description": "Tradle bitkeeper component in JS",
   "main": "index.js",
   "scripts": {
-    "jshint": "jshint {*.js,**/*.js} --config node_modules/tradle-style/.jshintrc",
-    "jscs": "jscs {*.js,lib/*.js,test/*.js} --config node_modules/tradle-style/.jscsrc",
-    "test": "node test/*.js"
+    "test": "standard && node test/*.js"
   },
   "pre-commit": [
-    "jshint",
-    "jscs",
     "test"
   ],
   "repository": {
@@ -59,16 +55,14 @@
     "sock-jack": "git://github.com/mvayngrib/sock-jack.git",
     "timeouts": "0.0.1",
     "tradle-utils": "^0.1.0",
-    "utp": "git://github.com/mvayngrib/utp#dev",
+    "utp": "git://github.com/mvayngrib/utp",
     "walk": "^2.3.5",
     "webtorrent": "git://github.com/tradle/webtorrent.git"
   },
   "devDependencies": {
-    "js-beautify": "^1.5.4",
-    "jscs": "^1.10.0",
-    "jshint": "latest",
     "minimist": "^1.1.0",
     "pre-commit": "0.0.11",
+    "standard": "^3.11.0",
     "tape": "^3.2.0",
     "tradle-style": "latest"
   }
