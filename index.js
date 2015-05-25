@@ -17,7 +17,7 @@ var EventEmitter = require('events').EventEmitter
 var inherits = require('util').inherits
 var Jobs = require('simple-jobs')
 var Timeouts = require('timeouts')
-var ports = require('promise-ports')
+// var ports = require('promise-ports')
 var DHT = require('bittorrent-dht/client')
 var noop = function () {}
 
@@ -711,22 +711,22 @@ Keeper.prototype.torrentPort = function () {
   return this.config('torrentPort') || this.dhtPort()
 }
 
-Keeper.prototype.mapPorts = function () {
-  var dhtPort = this.dhtPort()
-  var torrentPort = this.torrentPort()
+// Keeper.prototype.mapPorts = function () {
+//   var dhtPort = this.dhtPort()
+//   var torrentPort = this.torrentPort()
 
-  // TODO: check if simultaneous mapping is ok
-  return ports.mapPorts({
-    public: dhtPort,
-    private: dhtPort,
-    hijack: true
-  }, {
-    public: torrentPort,
-    private: torrentPort,
-    hijack: true
-  })
+//   // TODO: check if simultaneous mapping is ok
+//   return ports.mapPorts({
+//     public: dhtPort,
+//     private: dhtPort,
+//     hijack: true
+//   }, {
+//     public: torrentPort,
+//     private: torrentPort,
+//     hijack: true
+//   })
 
-}
+// }
 
 Keeper.prototype._defer = function (timeout) {
   var self = this

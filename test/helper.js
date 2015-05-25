@@ -2,7 +2,7 @@ var Q = require('q')
 var Keeper = require('../')
 var baseConfig = require('../conf/config')
 var DHT = require('bittorrent-dht/client')
-var ports = require('promise-ports')
+// var ports = require('promise-ports')
 baseConfig.storage = false
 
 var common = require('../lib/common')
@@ -50,22 +50,22 @@ function createKeepers (numInstances, mapPorts) {
         return kConfig
       })
 
-      if (!mapPorts) return
+      if (mapPorts) throw new Error('no longer supported')
 
-      var portConfigs = []
-      configs.forEach(function (conf) {
-        portConfigs.push({
-          public: conf.torrentPort,
-          private: conf.torrentPort,
-          hijack: true
-        }, {
-          public: conf.dhtPort,
-          private: conf.dhtPort,
-          hijack: true
-        })
-      })
+      // var portConfigs = []
+      // configs.forEach(function (conf) {
+      //   portConfigs.push({
+      //     public: conf.torrentPort,
+      //     private: conf.torrentPort,
+      //     hijack: true
+      //   }, {
+      //     public: conf.dhtPort,
+      //     private: conf.dhtPort,
+      //     hijack: true
+      //   })
+      // })
 
-      return ports.mapPorts.apply(ports, portConfigs)
+      // return ports.mapPorts.apply(ports, portConfigs)
     })
     .then(function () {
       return startInSeries(configs)
