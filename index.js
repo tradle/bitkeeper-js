@@ -117,8 +117,13 @@ Keeper.prototype._watchDHT = function () {
     self.emit('announce:' + hash, addr)
   })
 
+  this._dht.on('node', function(addr) {
+    self._dht._sendPing(addr, noop)
+  })
+
   this.on('fullyReplicated', this.onFullyReplicated)
   this.monitorReplication()
+  this.keepAlive()
 }
 
 Keeper.prototype._initTorrentClient = function () {
@@ -138,10 +143,20 @@ Keeper.prototype._initTorrentClient = function () {
   this._checkReady()
 }
 
-Keeper.prototype.monitorReplication = function () {
-  if (this._monitoringReplication) return
+Keeper.prototype.keepAlive = function () {
+  if (this._jobs.has('keepAlive')) return
 
-  this._monitoringReplication = true
+  this._jobs.add('_pingNodes', this._pingNodes, 60000)
+}
+
+Keeper.prototype._pingNodes = function () {
+  this._dht.nodes.toArray().forEach(function(n) {
+    this._sendPing(n.addr, noop)
+  }, this._dht)
+}
+
+Keeper.prototype.monitorReplication = function () {
+  if (this._jobs.has('checkReplication')) return
 
   this._jobs.add('checkReplication', this.checkReplication, this.config('checkReplication') || 60000)
 // this._jobs.add('report', this.report, 60000)
