@@ -117,7 +117,7 @@ Keeper.prototype._watchDHT = function () {
     self.emit('announce:' + hash, addr)
   })
 
-  this._dht.on('node', function(addr) {
+  this._dht.on('node', function (addr) {
     self._dht._sendPing(addr, noop)
   })
 
@@ -150,7 +150,7 @@ Keeper.prototype.keepAlive = function () {
 }
 
 Keeper.prototype._pingNodes = function () {
-  this._dht.nodes.toArray().forEach(function(n) {
+  this._dht.nodes.toArray().forEach(function (n) {
     this._sendPing(n.addr, noop)
   }, this._dht)
 }
@@ -334,7 +334,10 @@ Keeper.prototype._loadDHT = function () {
   if (this.config('dht')) {
     dhtPromise = Q.resolve(this.config('dht'))
   } else {
-    dhtPromise = getDHT(this._dhtPath)
+    dhtPromise = getDHT({
+      filePath: this._dhtPath,
+      bootstrap: this.config('bootstrap')
+    })
   }
 
   return dhtPromise.then(function (dht) {
@@ -801,20 +804,31 @@ function values (obj) {
   return vals
 }
 
-function getDHT (filePath) {
-  if (!filePath) return Q.resolve(new Keeper.DHT())
+function getDHT (options) {
+  var bootstrap = options.bootstrap
+  if (!options.filePath) {
+    var dht = bootstrap ? new Keeper.DHT({ bootstrap: bootstrap }) : new Keeper.DHT()
+    return Q.resolve(dht)
+  }
 
-  filePath = path.resolve(filePath)
+  var filePath = path.resolve(options.filePath)
   return Q.ninvoke(fs, 'readFile', filePath)
     .then(function (buf) {
       var nodes = JSON.parse(buf.toString())
       if (!nodes.length) return getDHT()
 
+      if (bootstrap) nodes.push.apply(nodes, bootstrap)
       return new Keeper.DHT({
         bootstrap: nodes
       })
     })
-    .catch(getDHT)
+    .catch(function (err) {
+      if (err) debug('unable to read dht from file')
+
+      return getDHT({
+        bootstrap: options.bootstrap
+      })
+    })
 }
 
 module.exports = Keeper

@@ -8,6 +8,7 @@
     "test": "node test/*.js"
   },
   "pre-commit": [
+    "style",
     "test"
   ],
   "repository": {
