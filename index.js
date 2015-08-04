@@ -36,7 +36,11 @@ function Keeper (config) {
   if (this.config('storage') === false) {
     this._storage = inMemoryStorage()
     this._loadDHT()
-  } else this._initFromStorage()
+  } else {
+    this._initFromStorage()
+      .then(this._checkReady)
+      .done()
+  }
 
   this.on('error', this._onerror)
 }
@@ -90,6 +94,7 @@ Keeper.prototype._checkReady = function () {
   if (!this._dht || !this._dht.ready) return
   // if (!this._portMapping) return
   if (!this._client || !this._client.ready) return
+  if (!this._storage) return
 
   this._ready = true
   this._debug('ready')
@@ -275,6 +280,10 @@ Keeper.prototype.addPeer = function (addr, torrent) {
 Keeper.prototype.removeTorrent = function (torrent, cb) {
   requireParam('torrent', torrent)
 
+  if (!this.ready()) {
+    return this.on('ready', this.removeTorrent.bind(this, torrent, cb))
+  }
+
   var infoHash = this.infoHash(torrent)
   torrent = this.torrent(infoHash)
 
@@ -310,8 +319,8 @@ Keeper.prototype._initFromStorage = function () {
   var txDir = path.join(dir, 'txs')
   this._dhtPath = path.join(dir, 'dht.json')
 
-  Q.nfcall(mkdirp, txDir)
-    .done(function () {
+  return Q.nfcall(mkdirp, txDir)
+    .then(function () {
       self._loadDHT()
       self._storage = new FSStorage(txDir)
     })
