@@ -26,6 +26,7 @@ function createDHTs (numInstances) {
   var tasks = dhts.map(function (dht, idx) {
     return Q.Promise(function (resolve) {
       dht.listen(baseConfig.dhtPort + 50000 + idx, resolve)
+      dht.socket.unref()
     })
   })
 
