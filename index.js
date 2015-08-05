@@ -15,6 +15,7 @@ var reemit = require('re-emitter')
 var common = require('./lib/common')
 var EventEmitter = require('events').EventEmitter
 var inherits = require('util').inherits
+var toElistener = require('elistener')
 var Jobs = require('simple-jobs')
 var Timeouts = require('timeouts')
 // var ports = require('promise-ports')
@@ -47,6 +48,7 @@ function Keeper (config) {
 
 Keeper.DHT = DHT
 inherits(Keeper, EventEmitter)
+toElistener(Keeper.prototype)
 
 Keeper.prototype._onerror = function (err, torrent) {
   this._debug(err, torrent && torrent.infoHash)
@@ -106,7 +108,6 @@ Keeper.prototype.ready = function () {
 }
 
 Keeper.prototype._watchDHT = function () {
-  var self = this
   var peers = this._dht.peers
   if (peers) {
     for (var infoHash in peers) {
@@ -117,18 +118,21 @@ Keeper.prototype._watchDHT = function () {
     }
   }
 
-  this._dht.on('announce', function (addr, hash) {
-    self.addPeer(addr, hash)
-    self.emit('announce:' + hash, addr)
-  })
-
-  this._dht.on('node', function (addr) {
-    self._dht._sendPing(addr, noop)
-  })
+  this.listenTo(this._dht, 'announce', this._onAnnounce)
+  this.listenTo(this._dht, 'node', this._onNode)
 
   this.on('fullyReplicated', this.onFullyReplicated)
   this.monitorReplication()
   this.keepAlive()
+}
+
+Keeper.prototype._onAnnounce = function (addr, hash) {
+  this.addPeer(addr, hash)
+  this.emit('announce:' + hash, addr)
+}
+
+Keeper.prototype._onNode = function (addr) {
+  this._dht._sendPing(addr, noop)
 }
 
 Keeper.prototype._initTorrentClient = function () {
@@ -341,6 +345,7 @@ Keeper.prototype._loadDHT = function () {
   var dhtPromise
 
   if (this.config('dht')) {
+    this._dontKillDHT = true
     dhtPromise = Q.resolve(this.config('dht'))
   } else {
     dhtPromise = getDHT({
@@ -366,7 +371,7 @@ Keeper.prototype._loadDHT = function () {
 
     self.onDHTReady(self._persistDHT)
     ;['announce', 'node', 'removenode', 'removepeer'].forEach(function (event) {
-      self._dht.on(event, self._persistDHT)
+      self.listenTo(self._dht, event, self._persistDHT)
     })
   })
 }
@@ -378,7 +383,7 @@ Keeper.prototype.onDHTReady = function (cb) {
     if (!self._dht) return cb(new Error("keeper doesn't have DHT"))
 
     if (self._dht.ready) cb()
-    else self._dht.on('ready', cb)
+    else self.listenOnce(self._dht, 'ready', cb)
   })
 }
 
@@ -389,6 +394,7 @@ Keeper.prototype.destroy = function () {
   if (this._destroyed) return
 
   this._destroyed = true
+  this.stopListening()
   this.removeAllListeners()
   this._jobs.clear()
   this._timeouts.clearAll()
@@ -401,6 +407,10 @@ Keeper.prototype.destroy = function () {
   if (this._client) {
     // destroys DHT internally
     tasks.push(Q.ninvoke(this._client, 'destroy'))
+  }
+
+  if (!this._dontKillDHT) {
+    tasks.push(Q.ninvoke(this._dht, 'destroy'))
   }
 
   return Q.allSettled(tasks)
