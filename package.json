@@ -41,7 +41,7 @@
     "re-emitter": "^1.1.1",
     "rimraf": "^2.2.8",
     "simple-jobs": "^0.0.1",
-    "sock-plex": "^0.0.1",
+    "sock-plex": "^1.0.1",
     "timeouts": "^0.0.1",
     "tradle-utils": "^0.1.1",
     "utp": "git://github.com/mvayngrib/utp",
