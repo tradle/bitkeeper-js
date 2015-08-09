@@ -108,6 +108,8 @@ Keeper.prototype.ready = function () {
 }
 
 Keeper.prototype._watchDHT = function () {
+  this._dhtPort = this._dht.address().port
+
   var peers = this._dht.peers
   if (peers) {
     for (var infoHash in peers) {
@@ -362,8 +364,8 @@ Keeper.prototype._loadDHT = function () {
       return /^d1:.?d2:id20:/.test(msg)
     })
 
-    self.onDHTReady(self._initTorrentClient)
     self.onDHTReady(self._watchDHT)
+    self.onDHTReady(self._initTorrentClient)
     self.onDHTReady(self._checkReady)
     if (!self._dht.listening) self._dht.listen(self.dhtPort())
 
@@ -391,6 +393,7 @@ Keeper.prototype.onDHTReady = function (cb) {
  * Self-destruct and cleanup
  **/
 Keeper.prototype.destroy = function () {
+  var self = this
   if (this._destroyed) return
 
   this._destroyed = true
@@ -406,14 +409,22 @@ Keeper.prototype.destroy = function () {
 
   if (this._client) {
     // destroys DHT internally
+    this._debug('destroying Webtorrent client')
     tasks.push(Q.ninvoke(this._client, 'destroy'))
   }
 
   if (!this._dontKillDHT) {
+    this._debug('destroying DHT')
     tasks.push(Q.ninvoke(this._dht, 'destroy'))
   }
 
-  return Q.allSettled(tasks)
+  return Q.all(tasks)
+    .catch(function (err) {
+      self._debug('failed to destroy', err)
+    })
+    .then(function () {
+      self._debug('destroyed')
+    })
 }
 
 /**
@@ -726,7 +737,7 @@ Keeper.prototype.exitIfErr = function (err) {
 }
 
 Keeper.prototype.dhtPort = function () {
-  return this.config('dhtPort') || this._dht.address().port
+  return this._dhtPort || this.config('dhtPort')
 }
 
 Keeper.prototype.torrentPort = function () {

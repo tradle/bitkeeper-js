@@ -44,7 +44,7 @@
     "sock-plex": "^1.0.1",
     "timeouts": "^0.0.1",
     "tradle-utils": "^0.1.1",
-    "utp": "git://github.com/mvayngrib/utp",
+    "utp": "mvayngrib/utp",
     "walk": "^2.3.5",
     "webtorrent": "git://github.com/tradle/webtorrent.git"
   },
