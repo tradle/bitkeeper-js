@@ -1,4 +1,4 @@
-require('../lib/socket-hacks')
+
 var test = require('tape')
 var Q = require('q')
 var utils = require('tradle-utils')
