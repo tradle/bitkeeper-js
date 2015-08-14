@@ -1,7 +1,5 @@
 'use strict'
 
-require('./lib/socket-hacks')
-
 var Q = require('q')
 var fs = require('fs')
 var mkdirp = require('mkdirp')
@@ -37,6 +35,7 @@ function Keeper (config) {
   if (this.config('storage') === false) {
     this._storage = inMemoryStorage()
     this._loadDHT()
+      .done()
   } else {
     this._initFromStorage()
       .then(this._checkReady)
@@ -360,9 +359,12 @@ Keeper.prototype._loadDHT = function () {
     if (self._destroyed) return dht.destroy()
 
     self._dht = dht
-    self._dht.socket.filterMessages(function (msg, rinfo) {
-      return /^d1:.?d2:id20:/.test(msg)
-    })
+    var sock = self._dht.socket
+    if (sock.filterMessages) {
+      sock.filterMessages(function (msg, rinfo) {
+        return /^d1:.?d2:id20:/.test(msg)
+      })
+    }
 
     self.onDHTReady(self._watchDHT)
     self.onDHTReady(self._initTorrentClient)
