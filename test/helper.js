@@ -1,3 +1,4 @@
+var net = require('net')
 var Q = require('q')
 var Keeper = require('../')
 var baseConfig = require('../conf/config')
@@ -45,8 +46,15 @@ function createKeepers (numInstances, mapPorts) {
 
       configs = dhts.map(function (dht, i) {
         var kConfig = common.clone(baseConfig)
-        kConfig.torrentPort = baseConfig.torrentPort + i
         kConfig.dhtPort = dht.address().port
+        if (baseConfig.torrentPort) {
+          kConfig.torrentPort = baseConfig.torrentPort + i
+        } else {
+          if (!net.isUTP) {
+            kConfig.torrentPort = kConfig.dhtPort + 1000
+          }
+        }
+
         kConfig.dht = dht
         return kConfig
       })
