@@ -1,4 +1,12 @@
 
+// interceptSetTimeout()
+
+if (process.env.UTP) {
+  console.log('USING UTP')
+  // test with utp over multiplexed sockets
+  require('multiplex-utp')
+}
+
 var test = require('tape')
 var Q = require('q')
 var utils = require('tradle-utils')
@@ -80,6 +88,41 @@ function testReplication (external) {
       .finally(function () {
         clearTimeout(timeoutId)
         t.end()
+        // watch()
       })
   })
 }
+
+// function watch () {
+//   setInterval(function () {
+//     var handles = process._getActiveHandles()
+//     console.log(handles)
+//     // console.log(handles.length, 'handles open')
+//     // var types = handles.map(function (h) {
+//     //   var type = h.constructor.toString().match(/function (.*?)\s*\(/)[1]
+//     //   if (type === 'Socket') {
+//     //     if (h instanceof dgram.Socket) type += ' (raw)'
+//     //     if (h._tag) type += ' ' + h._tag
+//     //   }
+
+//     //   return type + (h._id || h._timeoutId) + h._type
+//     // })
+
+//     // console.log(types)
+//   }, 2000).unref()
+// }
+
+// function interceptSetTimeout () {
+//   ;['setTimeout', 'setInterval'].forEach(function (method) {
+//     var id = 0
+//     var orig = global[method]
+//     global[method] = function () {
+//       console.log(method)
+//       var ret = orig.apply(this, arguments)
+//       ret._timeoutId = id++
+//       ret._type = method
+//       console.log(ret)
+//       return ret
+//     }
+//   })
+// }
