@@ -109,16 +109,6 @@ Keeper.prototype.ready = function () {
 Keeper.prototype._watchDHT = function () {
   this._dhtPort = this._dht.address().port
 
-  var peers = this._dht.peers
-  if (peers) {
-    for (var infoHash in peers) {
-      var addrs = peers[infoHash].index
-      for (var addr in addrs) {
-        if (addrs[addr]) this.addPeer(addr, infoHash)
-      }
-    }
-  }
-
   this.listenTo(this._dht, 'announce', this._onAnnounce)
   this.listenTo(this._dht, 'node', this._onNode)
 
@@ -149,6 +139,16 @@ Keeper.prototype._initTorrentClient = function () {
   this._client.on('ready', this._checkReady)
   this._client.on('torrent', this._ontorrent)
   reemit(this._client, this, ['warn', 'error'])
+
+  var peers = this._dht.peers
+  if (peers) {
+    for (var infoHash in peers) {
+      var addrs = peers[infoHash].index
+      for (var addr in addrs) {
+        if (addrs[addr]) this.addPeer(addr, infoHash)
+      }
+    }
+  }
 
   this._checkReady()
 }
