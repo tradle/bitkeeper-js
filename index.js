@@ -518,7 +518,6 @@ Keeper.prototype.seed = function (val) {
 
   var self = this
   var getTorrent
-  var torrent
   var infoHash
   if (val.infoHash) {
     if (!(this.isSeeding(val.infoHash) || (val.storage && val.storage.done))) {
