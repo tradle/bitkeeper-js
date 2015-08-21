@@ -41,6 +41,7 @@
     "q": "^1.1.2",
     "re-emitter": "^1.1.1",
     "rimraf": "^2.2.8",
+    "safecb": "0.0.1",
     "simple-jobs": "^0.0.1",
     "timeouts": "^0.0.1",
     "tradle-utils": "^0.1.1",

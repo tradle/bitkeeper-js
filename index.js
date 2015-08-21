@@ -1,7 +1,8 @@
 'use strict'
 
-var Q = require('q')
 var fs = require('fs')
+var safe = require('safecb')
+var Q = require('q')
 var mkdirp = require('mkdirp')
 var debug = require('debug')('bitkeeper-js')
 var utils = require('tradle-utils')
@@ -91,19 +92,27 @@ Keeper.prototype.report = function () {
 }
 
 Keeper.prototype._checkReady = function () {
-  if (this.ready()) return
+  var self = this
+  if (this._ready) return
   if (!this._dht || !this._dht.ready) return
   // if (!this._portMapping) return
   if (!this._client || !this._client.ready) return
   if (!this._storage) return
 
-  this._ready = true
-  this._debug('ready')
-  this.emit('ready')
-}
+  if (this._storage &&
+      this.config('seedStored') !== false &&
+      !this.config('private')) {
+    return this.seedStored()
+      .done(setReady)
+  } else {
+    setReady()
+  }
 
-Keeper.prototype.ready = function () {
-  return this._ready
+  function setReady () {
+    self._ready = true
+    self._debug('ready')
+    self.emit('ready')
+  }
 }
 
 Keeper.prototype._watchDHT = function () {
@@ -118,6 +127,10 @@ Keeper.prototype._watchDHT = function () {
 }
 
 Keeper.prototype._onAnnounce = function (addr, hash) {
+  if (!this._ready) {
+    return this.on('ready', this._onAnnounce.bind(this, addr, hash))
+  }
+
   this.addPeer(addr, hash)
   this.emit('announce:' + hash, addr)
 }
@@ -283,11 +296,10 @@ Keeper.prototype.addPeer = function (addr, torrent) {
  * @param {string|Torrent} torrent
  */
 Keeper.prototype.removeTorrent = function (torrent, cb) {
+  cb = safe(cb)
   requireParam('torrent', torrent)
 
-  if (!this.ready()) {
-    return this.on('ready', this.removeTorrent.bind(this, torrent, cb))
-  }
+  if (!this._client) throw new Error('not ready')
 
   var infoHash = this.infoHash(torrent)
   torrent = this.torrent(infoHash)
@@ -298,6 +310,8 @@ Keeper.prototype.removeTorrent = function (torrent, cb) {
       torrent.removeAllListeners()
       if (cb) cb()
     })
+  } else {
+    cb()
   }
 }
 
@@ -333,12 +347,14 @@ Keeper.prototype._initFromStorage = function () {
 
 Keeper.prototype.seedStored = function () {
   var self = this
+  if (!this._storage || !this._client) {
+    throw new Error('not ready')
+  }
 
-  if (!this.ready()) return this.on('ready', this.seedStored)
-
-  this._storage.getAll().then(function (vals) {
-    vals.forEach(self.seed)
-  })
+  return this._storage.getAll()
+    .then(function (vals) {
+      return Q.allSettled(vals.map(self.seed))
+    })
 }
 
 Keeper.prototype._loadDHT = function () {
@@ -399,8 +415,12 @@ Keeper.prototype.destroy = function () {
   if (this._destroyed) return
 
   this._destroyed = true
-  this.stopListening()
-  this.removeAllListeners()
+  try {
+    this.stopListening()
+    this.removeAllListeners()
+  } catch (err) {
+  }
+
   this._jobs.clear()
   this._timeouts.clearAll()
 
@@ -512,11 +532,10 @@ Keeper.prototype.seed = function (val) {
     getTorrent = Q.ninvoke(utils, 'createTorrent', val)
   }
 
-  getTorrent
-    .then(function (_torrent) {
+  return getTorrent
+    .then(function (torrent) {
       if (self._destroyed) return
 
-      torrent = _torrent
       infoHash = torrent.infoHash
       self._dht.announce(infoHash, self.torrentPort())
       self._dht.lookup(infoHash)
@@ -526,15 +545,15 @@ Keeper.prototype.seed = function (val) {
       if (self.hasTorrent(infoHash)) {
         return Q.ninvoke(self, 'removeTorrent', infoHash)
           .then(seed)
+      } else {
+        return seed()
       }
-      else seed()
     })
-    .done()
 
   function seed () {
     self._debug('seeding: ' + infoHash)
 
-    self._client.seed(val, {
+    return Q.ninvoke(self._client, 'seed', val, {
       name: utils.getTorrentName(val)
     })
   }
@@ -704,8 +723,13 @@ Keeper.prototype._doPut = function (key, val) {
   var self = this
 
   return self.storage()
-    .putOne(key, val, {
-      overwrite: true
+    .putOne(key, val)
+    .catch(function (err) {
+      if (/exists/.test(err.message)) {
+        return false
+      } else {
+        throw err
+      }
     })
     .then(function (put) {
       if (!put) return // all is good, but we already had this key/value
