@@ -34,6 +34,9 @@ function Keeper (config) {
   // this._pending = {}; // torrents that we're interested in but may not have files (or metadata) for yet
   this._seeding = {}
   this._timeouts = Timeouts()
+  this._readyDfd = Q.defer()
+  this._readyPromise = this._readyDfd.promise
+  this.once('ready', this._readyDfd.resolve)
 
   if (this.config('storage') === false) {
     this._storage = inMemoryStorage()
@@ -166,6 +169,10 @@ Keeper.prototype._initTorrentClient = function () {
   }
 
   this._checkReady()
+}
+
+Keeper.prototype.isReady = function () {
+  return this._ready
 }
 
 Keeper.prototype.keepAlive = function () {
@@ -319,6 +326,10 @@ Keeper.prototype.removeTorrent = function (torrent, cb) {
 
 Keeper.prototype.download = function (infoHash, cb) {
   var self = this
+  if (!this._ready) {
+    this.once('ready', this.download.bind(this, infoHash, cb))
+  }
+
   var cached = this.torrent(infoHash)
   cb = cb || noop
 
@@ -654,6 +665,10 @@ Keeper.prototype.isFullyReplicated = function (torrent) {
 
 Keeper.prototype.get = Keeper.prototype.getMany = function (keys) {
   // var self = this
+  if (!this._ready) {
+    return this._readyPromise.then(this.get.bind(this, keys))
+  }
+
   if (!Array.isArray(keys)) keys = [keys]
 
   return Q.allSettled(keys.map(this.getOne))
@@ -666,6 +681,9 @@ Keeper.prototype.get = Keeper.prototype.getMany = function (keys) {
 
 Keeper.prototype.getOne = function (key) {
   var self = this
+  if (!this._ready) {
+    return this._readyPromise.then(this.getOne.bind(this, key))
+  }
 
   return this.storage()
     .getOne(key)
@@ -708,6 +726,9 @@ Keeper.prototype.isKeeper = function () {
 
 Keeper.prototype.put = function (key, value) {
   var self = this
+  if (!this._ready) {
+    return this._readyPromise.then(this.put.bind(this, key, value))
+  }
 
   if (typeof value !== 'undefined') {
     return this.validate(key, value).then(function () {
