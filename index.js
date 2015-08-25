@@ -387,7 +387,9 @@ Keeper.prototype._loadDHT = function () {
     self.onDHTReady(self._watchDHT)
     self.onDHTReady(self._initTorrentClient)
     self.onDHTReady(self._checkReady)
-    if (!self._dht.listening) self._dht.listen(self.dhtPort())
+    if (!(self._dht.isBinding() || self._dht.isListening())) {
+      self._dht.listen(self.dhtPort())
+    }
 
     if (self.config('storage') === false) return
 
