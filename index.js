@@ -23,6 +23,8 @@ var noop = function () {}
 
 function Keeper (config) {
   EventEmitter.call(this)
+
+  this.setMaxListeners(0)
   this._jobs = new Jobs()
 
   utils.bindPrototypeFunctions(this)
@@ -128,7 +130,7 @@ Keeper.prototype._watchDHT = function () {
 
 Keeper.prototype._onAnnounce = function (addr, hash) {
   if (!this._ready) {
-    return this.on('ready', this._onAnnounce.bind(this, addr, hash))
+    return this.once('ready', this._onAnnounce.bind(this, addr, hash))
   }
 
   this.addPeer(addr, hash)
@@ -149,7 +151,7 @@ Keeper.prototype._initTorrentClient = function () {
     torrentPort: this.torrentPort()
   })
 
-  this._client.on('ready', this._checkReady)
+  this._client.once('ready', this._checkReady)
   this._client.on('torrent', this._ontorrent)
   reemit(this._client, this, ['warn', 'error'])
 
