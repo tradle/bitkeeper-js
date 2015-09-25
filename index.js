@@ -669,13 +669,19 @@ Keeper.prototype.get = Keeper.prototype.getMany = function (keys) {
     return this._readyPromise.then(this.get.bind(this, keys))
   }
 
-  if (!Array.isArray(keys)) keys = [keys]
+  var one
+  if (!Array.isArray(keys)) {
+    one = true
+    keys = [keys]
+  }
 
   return Q.allSettled(keys.map(this.getOne))
     .then(function (results) {
-      return results.map(function (r) {
+      results = results.map(function (r) {
         return r.value
       })
+
+      return one ? results[0] : results
     })
 }
 
