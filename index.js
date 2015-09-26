@@ -330,10 +330,17 @@ Keeper.prototype.download = function (infoHash, cb) {
     this.once('ready', this.download.bind(this, infoHash, cb))
   }
 
+  infoHash = this.infoHash(infoHash)
   var cached = this.torrent(infoHash)
   cb = cb || noop
 
-  if (cached) return cb(null, cached)
+  if (cached) {
+    this._dht.lookup(infoHash, function () {
+      self._dht.announce(infoHash, self.torrentPort())
+    })
+
+    return cb(null, cached)
+  }
 
   this._client.add(infoHash)
   this.once('torrent:' + infoHash, function (torrent) {

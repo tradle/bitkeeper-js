@@ -9,6 +9,7 @@ if (process.env.UTP) {
 
 var test = require('tape')
 var Q = require('q')
+var DHT = require('bittorrent-dht')
 var utils = require('tradle-utils')
 var helper = require('./helper')
 var baseConfig = require('../conf/config')
@@ -19,11 +20,11 @@ var data = [
   'bill',
   'ted',
   'rufus'
-].map(function (d) {
-  return new Buffer(d)
-})
+].map(Buffer)
 
-testReplication()
+var coordinator = new DHT({ bootstrap: false })
+coordinator.listen(testReplication)
+
 // testReplication(true)
 
 function testReplication (external) {
@@ -48,7 +49,12 @@ function testReplication (external) {
         return helper.createKeepers(numInstances)
       })
       .then(function (_keepers) {
-        helper.friendNext(_keepers.map(function (k) { return k.config('dht') }), '127.0.0.1')
+        // helper.friendNext(_keepers.map(function (k) { return k.config('dht') }), '127.0.0.1')
+        // helper.friendFirst(_keepers.map(function (k) { return k.config('dht') }), '127.0.0.1')
+        helper.befriend(_keepers.map(function (k) {
+          return k.config('dht')
+        }), coordinator, '127.0.0.1')
+
         keepers = _keepers
         // wait for every torrent to be replicated on every keeper
         return Q.all(infoHashes.map(function (infoHash, idx) {
@@ -78,15 +84,14 @@ function testReplication (external) {
         }))
       })
       .then(function () {
-        return Q.allSettled(keepers.map(function (k) {
+        return Q.all(keepers.map(function (k) {
           return k.destroy()
         }))
       })
-      .catch(function (err) {
-        t.error(err.message)
-      })
+      .catch(t.error)
       .finally(function () {
         clearTimeout(timeoutId)
+        coordinator.destroy()
         t.end()
         // watch()
       })

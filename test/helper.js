@@ -12,7 +12,9 @@ module.exports = {
   createDHTs: createDHTs,
   createKeepers: createKeepers,
   startInSeries: startInSeries,
-  friendNext: friendNext
+  friendNext: friendNext,
+  friendFirst: friendFirst,
+  befriend: befriend
 }
 
 function createDHTs (numInstances) {
@@ -107,5 +109,19 @@ function friendNext (dhts, ip) {
   for (var i = 0; i < l; i++) {
     var next = dhts[(i + 1) % l]
     dhts[i].addNode(ip + ':' + next.address().port, next.nodeId)
+  }
+}
+
+function friendFirst (dhts, ip) {
+  befriend(dhts.slice(1), dhts[0], ip)
+}
+
+function befriend (dhts, dht, ip) {
+  var l = dhts.length
+  var port = dht.address().port
+  var nodeId = dht.nodeId
+  // var ip = external ? ips.external : ips.internal
+  for (var i = 0; i < l; i++) {
+    dhts[i].addNode(ip + ':' + port, nodeId)
   }
 }
