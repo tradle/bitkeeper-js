@@ -336,11 +336,11 @@ Keeper.prototype.download = function (infoHash, cb) {
 
   if (cached) {
     // if (cached.metadata) {
-      this._dht.lookup(infoHash, function () {
-        self._dht.announce(infoHash, self.torrentPort())
-      })
+    this._dht.lookup(infoHash, function () {
+      self._dht.announce(infoHash, self.torrentPort())
+    })
 
-      return cb(null, cached)
+    return cb(null, cached)
     // } else {
     //   return this.removeTorrent(cached)
     //     .then(this.download.bind(this, infoHash, cb))
@@ -469,9 +469,9 @@ Keeper.prototype.destroy = function () {
     .then(function () {
       self._debug('destroyed')
       try {
+        self.emit('close')
         self.stopListening()
         self.removeAllListeners()
-        self.emit('close')
       } catch (err) {
       }
     })
