@@ -335,11 +335,16 @@ Keeper.prototype.download = function (infoHash, cb) {
   cb = cb || noop
 
   if (cached) {
-    this._dht.lookup(infoHash, function () {
-      self._dht.announce(infoHash, self.torrentPort())
-    })
+    // if (cached.metadata) {
+      this._dht.lookup(infoHash, function () {
+        self._dht.announce(infoHash, self.torrentPort())
+      })
 
-    return cb(null, cached)
+      return cb(null, cached)
+    // } else {
+    //   return this.removeTorrent(cached)
+    //     .then(this.download.bind(this, infoHash, cb))
+    // }
   }
 
   this._client.add(infoHash)
@@ -432,17 +437,12 @@ Keeper.prototype.onDHTReady = function (cb) {
 /**
  * Self-destruct and cleanup
  **/
+Keeper.prototype.close =
 Keeper.prototype.destroy = function () {
   var self = this
   if (this._destroyed) return
 
   this._destroyed = true
-  try {
-    this.stopListening()
-    this.removeAllListeners()
-  } catch (err) {
-  }
-
   this._jobs.clear()
   this._timeouts.clearAll()
 
@@ -468,6 +468,12 @@ Keeper.prototype.destroy = function () {
     })
     .then(function () {
       self._debug('destroyed')
+      try {
+        self.stopListening()
+        self.removeAllListeners()
+        self.emit('close')
+      } catch (err) {
+      }
     })
 }
 
